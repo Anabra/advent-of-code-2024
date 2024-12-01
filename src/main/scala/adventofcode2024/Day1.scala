@@ -28,10 +28,10 @@ object Day1 {
 
   def task2(): Int = {
     val (lhsLocs, rhsLocs) = readInputForDay1Task1()
-    val rhsLocOccurences = rhsLocs.groupBy(identity).view.mapValues(_.size).toMap
+    val rhsLocOccurrences = rhsLocs.groupBy(identity).view.mapValues(_.size).toMap
 
     lhsLocs
-      .map(loc => loc * rhsLocOccurences.getOrElse(loc, 0))
+      .map(loc => loc * rhsLocOccurrences.getOrElse(loc, 0))
       .sum
   }
 }
