@@ -31,6 +31,7 @@ object Day2 {
     input.trim.split("""\s+""").toVector.map(_.toInt)
   }
 
+  // TODO: clean up this madness
   def task2(): Int = {
     val reports1 = readInput()
     val reports2 = Vector(
@@ -41,9 +42,9 @@ object Day2 {
       )
     )
     val reports3 = Vector(
-      Vector(9, 9, 6, 5, 1)
+      Vector(1, 2, 5, 4, 5)
     )
-    val reports = reports3
+    val reports = reports1
 
     reports.count { report =>
       val reportTail = report.drop(1)
@@ -68,8 +69,9 @@ object Day2 {
           case Nil => Nil
           case fst :: rest => fst + error :: rest
         }
-        val newReport = goodPrefix ++ updatedSuffix
-        newReport.forall(d => 1 <= d && d <= 3)
+        val newReport1 = goodPrefix ++ updatedSuffix
+        val newReport2 = goodPrefix.dropRight(1) ++ Seq(goodPrefix.lastOption.map(_ + error)).flatten ++ potentiallyGoodSuffix
+        newReport1.forall(d => 1 <= d && d <= 3) || newReport2.forall(d => 1 <= d && d <= 3)
       } || diffs.drop(1).forall(d => 1 <= d && d <= 3)
 
       val dampenedDecreasingGood = (numTotal == numDecreasingGood) || {
@@ -78,8 +80,9 @@ object Day2 {
           case Nil => Nil
           case fst :: rest => fst + error :: rest
         }
-        val newReport = goodPrefix ++ updatedSuffix
-        newReport.forall(d => -3 <= d && d <= -1)
+        val newReport1 = goodPrefix ++ updatedSuffix
+        val newReport2 = goodPrefix.dropRight(1) ++ Seq(goodPrefix.lastOption.map(_ + error)).flatten ++ potentiallyGoodSuffix
+        newReport1.forall(d => -3 <= d && d <= -1) || newReport2.forall(d => -3 <= d && d <= -1)
       } || diffs.drop(1).forall(d => -3 <= d && d <= -1)
 
       dampenedIncreasingGood || dampenedDecreasingGood
