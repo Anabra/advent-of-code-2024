@@ -33,18 +33,7 @@ object Day2 {
 
   // TODO: clean up this madness
   def task2(): Int = {
-    val reports1 = readInput()
-    val reports2 = Vector(
-      parseTestInput(
-        """
-          |12 14 15 18 20 21 22 23
-          |""".stripMargin
-      )
-    )
-    val reports3 = Vector(
-      Vector(1, 2, 5, 4, 5)
-    )
-    val reports = reports1
+    val reports = readInput()
 
     reports.count { report =>
       val reportTail = report.drop(1)
@@ -52,69 +41,39 @@ object Day2 {
         .zip(reportTail)
         .map{ case (fst, snd) => snd - fst }
 
-      val numTotal = diffs.size
-      val numIncreasingGood = diffs.count(d => 1 <= d && d <= 3)
-      val numDecreasingGood = diffs.count(d => -3 <= d && d <= -1)
+      val isIncreasing = (d: Int) => 1 <= d && d <= 3
+      val isDecreasing = (d: Int) => -3 <= d && d <= -1
 
-      {
-        val numGood = math.max(numIncreasingGood, numDecreasingGood)
-        if (numGood == numTotal -2 || numGood == numTotal - 1) {
-          println(s"${report} -> ${diffs}")
+      val numTotal = diffs.size
+      val numIncreasingGood = diffs.count(isIncreasing)
+      val numDecreasingGood = diffs.count(isDecreasing)
+
+      def shiftError(error: Int, reportSlice: Seq[Int]): Seq[Int] = {
+        reportSlice match {
+          case Nil => Nil
+          case fst :: rest => (fst + error) :: rest
         }
       }
 
-      val dampenedIncreasingGood = (numTotal == numIncreasingGood) || {
-        val (goodPrefix, error :: potentiallyGoodSuffix) = diffs.toList.span(d => 1 <= d && d <= 3)
-        val updatedSuffix = potentiallyGoodSuffix match {
-          case Nil => Nil
-          case fst :: rest => fst + error :: rest
-        }
-        val newReport1 = goodPrefix ++ updatedSuffix
-        val newReport2 = goodPrefix.dropRight(1) ++ Seq(goodPrefix.lastOption.map(_ + error)).flatten ++ potentiallyGoodSuffix
-        newReport1.forall(d => 1 <= d && d <= 3) || newReport2.forall(d => 1 <= d && d <= 3)
-      } || diffs.drop(1).forall(d => 1 <= d && d <= 3)
+      def checkFoobar2(report: List[Int], pred: Int => Boolean): Boolean = {
+        val errorIxOpt = Option(diffs.indexWhere(!pred(_))).filter(_ != -1)
 
-      val dampenedDecreasingGood = (numTotal == numDecreasingGood) || {
-        val (goodPrefix, error :: potentiallyGoodSuffix) = diffs.toList.span(d => -3 <= d && d <= -1)
-        val updatedSuffix = potentiallyGoodSuffix match {
-          case Nil => Nil
-          case fst :: rest => fst + error :: rest
+        errorIxOpt.fold(true) { errorIx =>
+          // NOTE: error will certainly exists, because found its index beforehand
+          val (potentiallyGoodPrefix, error :: potentiallyGoodSuffix) = diffs.toList.splitAt(errorIx)
+          val newReport1 = potentiallyGoodPrefix ++ shiftError(error, potentiallyGoodSuffix)
+          val newReport2 = shiftError(error, potentiallyGoodPrefix.reverse).reverse ++ potentiallyGoodSuffix
+          newReport1.forall(pred) || newReport2.forall(pred)
         }
-        val newReport1 = goodPrefix ++ updatedSuffix
-        val newReport2 = goodPrefix.dropRight(1) ++ Seq(goodPrefix.lastOption.map(_ + error)).flatten ++ potentiallyGoodSuffix
-        newReport1.forall(d => -3 <= d && d <= -1) || newReport2.forall(d => -3 <= d && d <= -1)
-      } || diffs.drop(1).forall(d => -3 <= d && d <= -1)
+      }
+
+      val dampenedIncreasingGood = (numTotal == numIncreasingGood)
+        || checkFoobar2(diffs.toList, isIncreasing)
+
+      val dampenedDecreasingGood = (numTotal == numDecreasingGood)
+        || checkFoobar2(diffs.toList, isDecreasing)
 
       dampenedIncreasingGood || dampenedDecreasingGood
     }
   }
 }
-
-/*
-1 3 2 4 5
-  2 -1 2 1
-
-10 9 3 2 1
-  -1 -6 -1 -1
-
-10 3 2 1
-  -7 -1 -1
-
-5 10 9 8
-  5 -1 -1
-
-1 2 3 10
-  1 1 7
-
-10 5 4 3
-  -5 -1 -1
-
-5 10 6 5
-  5 -4 -1
-
-8 6 4 4 1
-  -2 -2 0 -3
-
-1 2 3 10 4 5
-  1 1 7 -6 1
-*/
