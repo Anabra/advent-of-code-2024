@@ -23,17 +23,25 @@ object Day4 {
     }
   }
 
+  def isValidCoordinate(maxRowLength: Int, maxColLength: Int)(x: Int, y: Int): Boolean = {
+    0 <= x && x < maxRowLength && 0 <= y && y < maxColLength
+  }
+
   def getSurroundingCoords(x: Int, y: Int, len: Int, maxRowLength: Int, maxColLength: Int): Vector[Vector[(Int, Int)]] = {
-    Vector(
-      Vector.iterate((x,y), len) { case (x,y) => (x, y + 1) }, // horizontal forward
-      Vector.iterate((x,y), len) { case (x,y) => (x, y - 1) }, // horizontal backward
-      Vector.iterate((x,y), len) { case (x,y) => (x + 1, y) }, // vertical down
-      Vector.iterate((x,y), len) { case (x,y) => (x - 1, y) }, // vertical up
-      Vector.iterate((x,y), len) { case (x,y) => (x + 1, y + 1) }, // diagonal down-right
-      Vector.iterate((x,y), len) { case (x,y) => (x - 1, y - 1) }, // diagonal up-left
-      Vector.iterate((x,y), len) { case (x,y) => (x + 1, y - 1) }, // diagonal down-left
-      Vector.iterate((x,y), len) { case (x,y) => (x - 1, y + 1) } // diagonal up-right
-    ).filter(_.forall { case (x,y) => 0 <= x && x < maxRowLength && 0 <= y && y < maxColLength })
+    val directions = Vector(
+      (0,   1), // horizontal forward
+      (0,  -1), // horizontal backward
+      (1,   0), // vertical down
+      (-1,  0), // vertical up
+      (1,   1), // diagonal down-right
+      (-1, -1), // diagonal up-left
+      (1,  -1), // diagonal down-left
+      (-1,  1)  // diagonal up-right
+    )
+
+    directions.map { case (dx, dy) =>
+      Vector.iterate((x, y), len) { case (x, y) => (x + dx, y + dy) }
+    }.filter(_.forall(isValidCoordinate(maxRowLength, maxColLength)))
   }
 
   def getWordFromCoords(coords: Vector[(Int, Int)], wordMatrix: Vector[Vector[Char]]): String = {
@@ -54,7 +62,7 @@ object Day4 {
     Vector(
       Vector((x-1, y-1), (x,y), (x+1, y+1)), // diagonal down-right
       Vector((x-1, y+1), (x,y), (x+1, y-1)), // diagonal down-left
-    ).filter(_.forall { case (x,y) => 0 <= x && x < maxRowLength && 0 <= y && y < maxColLength })
+    ).filter(_.forall(isValidCoordinate(maxRowLength, maxColLength)))
   }
   def task2(): Int = {
     val input = readInput()
