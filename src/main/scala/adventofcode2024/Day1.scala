@@ -7,7 +7,7 @@ object Day1 {
   }
 
   def readInputForDay1Task1(): (Vector[Int], Vector[Int]) = {
-    val bufferedSource = io.Source.fromResource("day1_task1.txt")
+    val bufferedSource = io.Source.fromResource("day1.txt")
     val lines = bufferedSource.getLines.toVector
     bufferedSource.close
 
