@@ -52,6 +52,9 @@ object Day5 {
     edges.groupBy(_._1).view.mapValues(_.map(_._2)).toMap
   }
 
+  // this is a custom BFS-based, tailrec version
+  // TODO: optimize data structures
+  // TODO: maybe we could use Kahn's algorithm
   def toposort(graph: Map[Int, Vector[Int]]): Vector[Int] = {
     val toVisit = collection.mutable.Queue.empty[Int]
 
@@ -121,10 +124,10 @@ object Day5 {
 
   def task2(): Int = {
     val (rules, pageLists) = readInput()
-    val orderedPages = toposort(mkGraph(rules))
 
     pageLists.map { unorderedPages =>
-      val reorderedPages = reorder(orderedPages, unorderedPages)
+      val applicableRules = rules.filter { case (from, to) => unorderedPages.contains(from) && unorderedPages.contains(to) }
+      val reorderedPages = toposort(mkGraph(applicableRules))
 
       // only consider those page lists that were initially unordered
       if (reorderedPages == unorderedPages) {
