@@ -156,37 +156,12 @@ object Day6 {
     println(s"90th percentile: ${numObstaclesPerRow.sorted()(numRows * 9 / 10)}")
   }
 
-  def task2(): Int = {
-    val (startingCoords, grid) = readInput()
-
-    printStats(grid)
-
-    // This is so that we are dealing with potential loops that would lead us back to the starting trail
-    // That "turn" is not counted by default, so we add a virtual turn
-    val virtualStartingTurnPosWithCoordOpt = moveOnGrid(startingCoords, down, grid).map { case (newPos, _) => newPos -> left }
-    val (visited, turns) = moveTillCanAdvanced(
-      startingCoords,
-      up,
-      grid,
-      Set(startingCoords -> up),
-      virtualStartingTurnPosWithCoordOpt.toSet
-    )
-
-    val obstacleCoords = turns.flatMap { case (turnPos, turnDir) =>
-      val potentialLoopingTurnCoordsOppositeDir = moveTillNextObstacle(turnPos, reverseDirection(turnDir), grid, Set.empty)
-//      val potentialLoopingTurnCoordsSameDir = moveTillNextObstacle(turnPos, turnDir, grid, Set.empty)
-      val potentialLoopingCoords = potentialLoopingTurnCoordsOppositeDir - turnPos
-
-      visited.filter { case (visitedPos, movingDir) =>
-        // check if we could have come from the same direction as we came into the turn from any of the potential looping coords
-        movingDir == calcLeftTurnBasedOnCurrentFacing(turnDir) && potentialLoopingCoords.contains(visitedPos)
-      }.flatMap { case (visitedPos, movingDir) =>
-        // TODO: check if there is already an obstacle there
-        // maybe we can get away without it, because we would be in a loop in that case
-        moveOnGrid(visitedPos, movingDir, grid)
-      }.map(_._1)
-    }
-
+  def printPatrolPathsWithNewObstacles(
+    obstacleCoords: Set[(Int, Int)],
+    visited: Set[((Int, Int), (Int, Int))],
+    turns: Set[((Int, Int), (Int, Int))],
+    grid: Vector[Vector[Char]],
+  ): Unit = {
     val gridWithNewObstacles = obstacleCoords.foldLeft(grid) { case (grid, (x, y)) => grid.updated(x, grid(x).updated(y, 'O')) }
 
     val gridWithPatrolPath = visited.foldLeft(gridWithNewObstacles) { case (grid, (pos@(x, y), dir)) =>
@@ -200,17 +175,23 @@ object Day6 {
       grid.updated(x, grid(x).updated(y, mark))
     }
 
-//    println(gridWithNewObstacles.map(_.mkString).mkString("\n"))
-//    println("")
-//    println(gridWithPatrolPath.map(_.mkString).mkString("\n"))
+    println(gridWithNewObstacles.map(_.mkString).mkString("\n"))
+    println("")
+    println(gridWithPatrolPath.map(_.mkString).mkString("\n"))
 
-//    obstacleCoords.foreach { case (x, y) =>
-//      val pathWithObstacle = gridWithPatrolPath.updated(x, gridWithPatrolPath(x).updated(y, 'O'))
-//      println(pathWithObstacle.map(_.mkString).mkString("\n"))
-//      println("")
-//    }
+    obstacleCoords.foreach { case (x, y) =>
+      val pathWithObstacle = gridWithPatrolPath.updated(x, gridWithPatrolPath(x).updated(y, 'O'))
+      println(pathWithObstacle.map(_.mkString).mkString("\n"))
+      println("")
+    }
+  }
 
-    obstacleCoords.size
+  def task2(): Int = {
+    val (startingCoords, grid) = readInput()
+
+    printStats(grid)
+    
+    42
   }
 }
 
