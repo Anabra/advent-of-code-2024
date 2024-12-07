@@ -17,7 +17,7 @@ object Day6 {
 
 
   def readInput(): ((Int, Int), Vector[Vector[Char]]) = {
-    val bufferedSource = io.Source.fromResource("day6_small_2.txt")
+    val bufferedSource = io.Source.fromResource("day6.txt")
     val lines = bufferedSource.getLines.toVector
     bufferedSource.close
 
@@ -54,7 +54,7 @@ object Day6 {
           Some((newX, newY), direction)
         case '#' =>
           val relativeRightDirection = calcRightTurnBasedOnCurrentFacing(direction)
-          moveOnGrid(curPos, relativeRightDirection, grid)
+          Some(curPos -> relativeRightDirection)
       }
     }
   }
