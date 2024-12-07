@@ -17,7 +17,7 @@ object Day6 {
 
 
   def readInput(): ((Int, Int), Vector[Vector[Char]]) = {
-    val bufferedSource = io.Source.fromResource("day6_small.txt")
+    val bufferedSource = io.Source.fromResource("day6.txt")
     val lines = bufferedSource.getLines.toVector
     bufferedSource.close
 
@@ -144,8 +144,22 @@ object Day6 {
     moveTillNextObstacle(turnPos, reverseDirection(turnDir), grid, Set.empty)
   }
 
+  def printStats(grid: Vector[Vector[Char]]): Unit = {
+    val numObstaclesPerRow = grid.map(_.count(_ == '#'))
+    val numRows = grid.size
+
+    println(s"total: ${numObstaclesPerRow.sum}")
+    println(s"avg: ${numObstaclesPerRow.sum.toDouble / numRows}")
+    println(s"min: ${numObstaclesPerRow.min}")
+    println(s"max: ${numObstaclesPerRow.max}")
+    println(s"median: ${numObstaclesPerRow.sorted()(numRows / 2)}")
+    println(s"90th percentile: ${numObstaclesPerRow.sorted()(numRows * 9 / 10)}")
+  }
+
   def task2(): Int = {
     val (startingCoords, grid) = readInput()
+
+    printStats(grid)
 
     // This is so that we are dealing with potential loops that would lead us back to the starting trail
     // That "turn" is not counted by default, so we add a virtual turn
@@ -160,8 +174,8 @@ object Day6 {
 
     val obstacleCoords = turns.flatMap { case (turnPos, turnDir) =>
       val potentialLoopingTurnCoordsOppositeDir = moveTillNextObstacle(turnPos, reverseDirection(turnDir), grid, Set.empty)
-      val potentialLoopingTurnCoordsSameDir = moveTillNextObstacle(turnPos, turnDir, grid, Set.empty)
-      val potentialLoopingCoords = (potentialLoopingTurnCoordsOppositeDir ++ potentialLoopingTurnCoordsSameDir) - turnPos
+//      val potentialLoopingTurnCoordsSameDir = moveTillNextObstacle(turnPos, turnDir, grid, Set.empty)
+      val potentialLoopingCoords = potentialLoopingTurnCoordsOppositeDir - turnPos
 
       visited.filter { case (visitedPos, movingDir) =>
         // check if we could have come from the same direction as we came into the turn from any of the potential looping coords
@@ -190,11 +204,11 @@ object Day6 {
 //    println("")
 //    println(gridWithPatrolPath.map(_.mkString).mkString("\n"))
 
-    obstacleCoords.foreach { case (x, y) =>
-      val pathWithObstacle = gridWithPatrolPath.updated(x, gridWithPatrolPath(x).updated(y, 'O'))
-      println(pathWithObstacle.map(_.mkString).mkString("\n"))
-      println("")
-    }
+//    obstacleCoords.foreach { case (x, y) =>
+//      val pathWithObstacle = gridWithPatrolPath.updated(x, gridWithPatrolPath(x).updated(y, 'O'))
+//      println(pathWithObstacle.map(_.mkString).mkString("\n"))
+//      println("")
+//    }
 
     obstacleCoords.size
   }
