@@ -17,7 +17,7 @@ object Day6 {
 
 
   def readInput(): ((Int, Int), Vector[Vector[Char]]) = {
-    val bufferedSource = io.Source.fromResource("day6.txt")
+    val bufferedSource = io.Source.fromResource("day6_small_2.txt")
     val lines = bufferedSource.getLines.toVector
     bufferedSource.close
 
@@ -49,16 +49,13 @@ object Day6 {
     if (newX < 0 || newY < 0 || newX >= grid.size || newY >= grid.head.size) {
       None
     } else {
-      Some(
-        grid(newX)(newY) match {
-          case '.' =>
-            ((newX, newY), direction)
-          case '#' =>
-            val relativeRightDirection = calcRightTurnBasedOnCurrentFacing(direction)
-            val nextPos = calcNextPos(curPos, relativeRightDirection)
-            (nextPos, relativeRightDirection)
-        }
-      )
+      grid(newX)(newY) match {
+        case '.' =>
+          Some((newX, newY), direction)
+        case '#' =>
+          val relativeRightDirection = calcRightTurnBasedOnCurrentFacing(direction)
+          moveOnGrid(curPos, relativeRightDirection, grid)
+      }
     }
   }
 
@@ -81,31 +78,64 @@ object Day6 {
     visited.size
   }
 
+  enum PathResult:
+    case Exited, Looping
+
   @tailrec
-  def moveTillCanAdvanced(
+  def moveTillCanWithLoopingDetection(
     curPos: (Int, Int),
     curDirection: (Int, Int),
     grid: Vector[Vector[Char]],
-    visited: Set[((Int, Int), (Int, Int))],
-    turns: Set[((Int, Int), (Int, Int))]
-  ): (Set[((Int, Int), (Int, Int))], Set[((Int, Int), (Int, Int))]) = {
-    moveOnGrid(curPos, curDirection, grid) match {
-      case None => (visited, turns)
-      case Some((newPos, newDirection)) if newDirection == curDirection => moveTillCanAdvanced(
-        newPos,
-        newDirection,
-        grid,
-        visited + ((newPos, newDirection)),
-        turns
-      )
-      case Some((newPos, newDirection)) if newDirection != curDirection => moveTillCanAdvanced(
-        newPos,
-        newDirection,
-        grid,
-        visited + ((newPos, newDirection)),
-        turns + ((curPos, curDirection))
-      )
+    visitedTurns: Set[((Int, Int), (Int, Int))],
+  ): PathResult= {
+    if (visitedTurns.contains(curPos -> curDirection)) {
+      PathResult.Looping
+    } else {
+      moveOnGrid(curPos, curDirection, grid) match {
+        case None => PathResult.Exited
+        case Some((newPos, newDirection)) if newDirection == curDirection =>
+          moveTillCanWithLoopingDetection(newPos, newDirection, grid, visitedTurns)
+        case Some((newPos, newDirection)) if newDirection != curDirection =>
+          moveTillCanWithLoopingDetection(newPos, newDirection, grid, visitedTurns + (curPos -> curDirection))
+      }
     }
+  }
+
+  def moveTillCanWithNewObstacleSimulation(
+    startPos: (Int, Int),
+    grid: Vector[Vector[Char]],
+  ): Set[(Int, Int)] = {
+    @tailrec
+    def loop(
+      curPos: (Int, Int),
+      curDirection: (Int, Int),
+      grid: Vector[Vector[Char]],
+      newObstacleCoords: Set[(Int, Int)],
+    ): Set[(Int, Int)] = {
+      moveOnGrid(curPos, curDirection, grid) match {
+        case None => newObstacleCoords
+        case Some((newPos@(newX, newY), newDirection)) if newDirection == curDirection =>
+          // Simulate run with new obstacle added from beginning
+          val gridWithNewObstacle = grid.updated(newX, grid(newX).updated(newY, '#'))
+          val simulationResult = moveTillCanWithLoopingDetection(startPos, up, gridWithNewObstacle, Set.empty)
+          val newNewObstacles = if (simulationResult == PathResult.Looping) newObstacleCoords + newPos else newObstacleCoords
+
+          loop(
+            newPos,
+            newDirection,
+            grid,
+            newNewObstacles
+          )
+        case Some((newPos, newDirection)) if newDirection != curDirection => loop(
+          newPos,
+          newDirection,
+          grid,
+          newObstacleCoords,
+        )
+      }
+    }
+
+    loop(startPos, up, grid, Set.empty) - startPos
   }
 
   def calcLeftTurnBasedOnCurrentFacing(curFacing: (Int, Int)): (Int, Int) = curFacing match {
@@ -115,33 +145,11 @@ object Day6 {
     case `right` => up
   }
 
-  @tailrec
-  def moveTillNextObstacle(
-    curPos: (Int, Int),
-    curDir: (Int, Int),
-    grid: Vector[Vector[Char]],
-    visited: Set[(Int, Int)]
-  ): Set[(Int, Int)] = {
-    moveOnGrid(curPos, curDir, grid) match {
-      case None => visited
-      case Some((_, newDir)) if newDir != curDir => visited
-      case Some((newPos, newDir)) => moveTillNextObstacle(newPos, newDir, grid, visited + newPos)
-    }
-  }
-
   def reverseDirection(dir: (Int, Int)): (Int, Int) = dir match {
     case `up` => down
     case `right` => left
     case `down` => up
     case `left` => right
-  }
-
-  def calcPotentialLoopingTurnCoords(
-    turnPos: (Int, Int),
-    turnDir: (Int, Int),
-    grid: Vector[Vector[Char]],
-  ): Set[(Int, Int)] = {
-    moveTillNextObstacle(turnPos, reverseDirection(turnDir), grid, Set.empty)
   }
 
   def printStats(grid: Vector[Vector[Char]]): Unit = {
@@ -187,11 +195,15 @@ object Day6 {
   }
 
   def task2(): Int = {
-    val (startingCoords, grid) = readInput()
+    val (startingCoords@(startX, startY), grid) = readInput()
 
-    printStats(grid)
-    
-    42
+    val newObstacles = moveTillCanWithNewObstacleSimulation(startingCoords, grid)
+
+    val gridWithNewObstacles = newObstacles
+      .foldLeft(grid) { case (grid, (x, y)) => grid.updated(x, grid(x).updated(y, 'O')) }
+    val gridWithNewObstaclesAndStartingCoords =  gridWithNewObstacles.updated(startX, gridWithNewObstacles(startX).updated(startY, '^'))
+    println(gridWithNewObstacles.map(_.mkString).mkString("\n"))
+
+    newObstacles.size
   }
 }
-
