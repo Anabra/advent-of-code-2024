@@ -1,7 +1,6 @@
 package adventofcode2024
 
-import scala.annotation.tailrec
-import scala.collection.immutable.SortedSet
+import scala.annotation.{nowarn, tailrec}
 import scala.collection.mutable
 
 object Day7 {
@@ -27,6 +26,7 @@ object Day7 {
   def calcPossibleOperators(expectedResult: Long, operands: Vector[Int]): Option[Vector[Operator]] = {
     val todo = mutable.Stack((expectedResult, operands.reverse, Vector.empty[Operator]))
     @tailrec
+    @nowarn("msg=exhaustive")
     def loop(): Option[Vector[Operator]] = {
       if (todo.isEmpty) {
         None
