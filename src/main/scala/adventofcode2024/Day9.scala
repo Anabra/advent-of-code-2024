@@ -51,14 +51,14 @@ object Day9 {
 
   def prettyUncompressedFileSystem(fsIndex: Vector[UncompressedFileDescriptor]): String =
     fsIndex.map { case UncompressedFileDescriptor(fileId, _, numFilledBlocks, numEmptyBlocks) =>
-      val filledBlocks = Vector.fill(numFilledBlocks)(prettyFileId(fileId)).mkString
-      val emptyBlocks = Vector.fill(numEmptyBlocks)(".").mkString
+      val filledBlocks = prettyFileId(fileId) * numFilledBlocks
+      val emptyBlocks = "." * numEmptyBlocks
       filledBlocks + emptyBlocks
     }.mkString
 
   def prettyCompressedFileSystem(fsIndex: Vector[CompressedFileDescriptor]): String =
     fsIndex.map { case CompressedFileDescriptor(fileId, _, length) =>
-      val filledBlocks = Vector.fill(length)(prettyFileId(fileId)).mkString
+      val filledBlocks = prettyFileId(fileId) * length
       filledBlocks
     }.mkString
 
