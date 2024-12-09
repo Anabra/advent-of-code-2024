@@ -9,46 +9,6 @@ object Day9 {
     println(task2())
   }
 
-  case class FileDescriptor(
-    beginningIx: Int,
-    length: Int,
-  )
-
-  // file id -> file descriptor
-  type FileSystemIndex = Vector[FileDescriptor]
-
-  def readInput(): FileSystemIndex = {
-    val bufferedSource = io.Source.fromResource("day9_small.txt")
-    val input = bufferedSource.getLines.toVector.head.map(_.asDigit).toVector.grouped(2)
-    bufferedSource.close
-
-    input.foldLeft(0 -> Vector.empty[FileDescriptor]) { case ((curIx, descriptorAcc), foobar) =>
-      foobar match {
-        case Vector(numFilledBlocks, numEmptyBlocks) =>
-          val newIx = curIx + numFilledBlocks + numEmptyBlocks
-          val newDescriptor = FileDescriptor(curIx, numFilledBlocks)
-          newIx -> (descriptorAcc :+ newDescriptor)
-        case Vector(numFilledBlocks) =>
-          val newIx = curIx + numFilledBlocks // this doesn't really matter
-          val newDescriptor = FileDescriptor(curIx, numFilledBlocks)
-          newIx -> (descriptorAcc :+ newDescriptor)
-      }
-    }._2
-  }
-
-  def prettyFileSystem(fsIndex: FileSystemIndex): String = {
-    def prettyFileId(id: Int): String = {
-      if (id < 10) id.toString else s"[${id}]"
-    }
-
-    val dummyFd = FileDescriptor(0, 0)
-    fsIndex.zipAll(fsIndex.drop(1), dummyFd, dummyFd).zipWithIndex.map { case ((curFd, nextFd), fileId) =>
-      val filledBlocks = Vector.fill(curFd.length)(prettyFileId(fileId)).mkString
-      val emptyBlocks = Vector.fill(nextFd.beginningIx - (curFd.beginningIx + curFd.length))(".").mkString
-      filledBlocks + emptyBlocks
-    }.mkString
-  }
-
   case class UncompressedFileDescriptor(
     fileId: Int,
     beginIx: Int,
@@ -62,7 +22,44 @@ object Day9 {
     length: Int,
   )
 
-  def compactFs(fs: Vector[UncompressedFileDescriptor]): Vector[CompressedFileDescriptor] = {
+  def readInput(): Vector[UncompressedFileDescriptor] = {
+    val bufferedSource = io.Source.fromResource("day9.txt")
+    val input = bufferedSource.getLines.toVector.head.map(_.asDigit).toVector.grouped(2)
+    bufferedSource.close
+
+    input.foldLeft((0, 0, Vector.empty[UncompressedFileDescriptor])) { case ((curFileId, curBeginIx, descriptorAcc), fileDesc) =>
+      fileDesc match {
+        case Vector(numFilledBlocks, numEmptyBlocks) =>
+          val newIx = curBeginIx + numFilledBlocks + numEmptyBlocks
+          val newDescriptor = UncompressedFileDescriptor(curFileId, curBeginIx, numFilledBlocks, numEmptyBlocks)
+          (curFileId + 1, newIx, descriptorAcc :+ newDescriptor)
+        case Vector(numFilledBlocks) =>
+          val newIx = curBeginIx + numFilledBlocks // this doesn't really matter
+          val newDescriptor = UncompressedFileDescriptor(curFileId, curBeginIx, numFilledBlocks, 0)
+          (curFileId + 1, newIx, descriptorAcc :+ newDescriptor)
+      }
+    }._3
+  }
+
+  def prettyFileId(id: Int): String = {
+    if (id < 10) id.toString else s"[${id}]"
+  }
+
+  def prettyUncompressedFileSystem(fsIndex: Vector[UncompressedFileDescriptor]): String =
+    fsIndex.map { case UncompressedFileDescriptor(fileId, _, numFilledBlocks, numEmptyBlocks) =>
+      val filledBlocks = Vector.fill(numFilledBlocks)(prettyFileId(fileId)).mkString
+      val emptyBlocks = Vector.fill(numEmptyBlocks)(".").mkString
+      filledBlocks + emptyBlocks
+    }.mkString
+
+  def prettyCompressedFileSystem(fsIndex: Vector[CompressedFileDescriptor]): String =
+    fsIndex.map { case CompressedFileDescriptor(fileId, _, length) =>
+      val filledBlocks = Vector.fill(length)(prettyFileId(fileId)).mkString
+      filledBlocks
+    }.mkString
+
+
+  def compressFs(fs: Vector[UncompressedFileDescriptor]): Vector[CompressedFileDescriptor] = {
     val compressedFs = mutable.Queue.empty[CompressedFileDescriptor]
 
     def loop(
@@ -76,7 +73,7 @@ object Day9 {
 
       val numAvailableBlocks = freeSpaceTarget.numEmptyBlocks - numFreeBlocksUsed
       val numNeededBlocks = compressionTarget.numFilledBlocks - numAlreadyCompressedBlocks
-      val beginIxCompressedPart = freeSpaceTarget.beginIx + numFreeBlocksUsed
+      val beginIxCompressedPart = freeSpaceTarget.beginIx + freeSpaceTarget.numFilledBlocks + numFreeBlocksUsed
 
       if (filePtrToFreeSpaceTarget < filePtrToCompressionTarget) {
         if (numFreeBlocksUsed == 0) {
@@ -113,7 +110,7 @@ object Day9 {
             filePtrToFreeSpaceTarget + 1,
             0,
             filePtrToCompressionTarget,
-            numAvailableBlocks,
+            numAlreadyCompressedBlocks + numAvailableBlocks,
           )
         } else if (numAvailableBlocks == numNeededBlocks) {
           val newCompressedFd = CompressedFileDescriptor(
@@ -134,7 +131,7 @@ object Day9 {
       } else if (filePtrToFreeSpaceTarget == filePtrToCompressionTarget && numNeededBlocks > 0) {
         val newCompressedFd = CompressedFileDescriptor(
           fileId = compressionTarget.fileId,
-          beginIx = beginIxCompressedPart,
+          beginIx = compressionTarget.beginIx,
           length = numNeededBlocks,
         )
         compressedFs.enqueue(newCompressedFd)
@@ -148,18 +145,22 @@ object Day9 {
   }
 
   def checksum(fs: Vector[CompressedFileDescriptor]): Long = {
-    fs.map(fd => (fd.beginIx to fd.beginIx + fd.length).map(_ * fd.fileId.toLong).sum).sum
+    fs.map(fd => (fd.beginIx until fd.beginIx + fd.length).map(_ * fd.fileId.toLong).sum).sum
   }
 
-  def task1(): Int = {
-    val fsIndex = readInput()
-    println(fsIndex)
-    println(prettyFileSystem(fsIndex))
+  def task1(): Long = {
+    val uncompressedFs = readInput()
+    println(uncompressedFs)
+    println(prettyUncompressedFileSystem(uncompressedFs))
 
-    42
+    val compressedFs = compressFs(uncompressedFs)
+    println(compressedFs)
+    println(prettyCompressedFileSystem(compressedFs))
+
+    checksum(compressedFs)
   }
 
-  def task2(): Int = {
+  def task2(): Long = {
     val fsIndex = readInput()
     42
   }
@@ -167,4 +168,7 @@ object Day9 {
 /*
 00...111...2...333.44.5555.6666.777.888899
 00...111...2...333.44.5555.6666.777.888899
+
+0099811188827773336446555566
+0099811188827773336446555566
 */
