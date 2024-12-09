@@ -209,22 +209,22 @@ object Day9 {
   def compressWithoutFragmentation(
     freeSpaces: FreeSpaces,
     fs: UnfragmentedFileSystem,
-  ): (FreeSpaces, UnfragmentedFileSystem) = {
+  ): UnfragmentedFileSystem = {
     val sortedFileDescriptors = fs.values.toVector.sortBy(- _.fileId)
 
     sortedFileDescriptors.foldLeft(freeSpaces -> fs) { case ((unusedFreeSpaces, fs), curFd) =>
       moveToFreeSpace(unusedFreeSpaces, fs, curFd)
-    }
+    }._2
   }
 
-  // TODO: print the spaces we moved from
-  def prettyUnfragmentedFs(freeSpaces: FreeSpaces, fs: UnfragmentedFileSystem): String = {
-    val rawFreeSpaces = freeSpaces.map(s => (s.beginIx, s.length, "."))
-    val rawFileBlocks = fs.values.map(fd => (fd.beginIx, fd.length, prettyFileId(fd.fileId)))
-    (rawFreeSpaces ++ rawFileBlocks)
-      .sortBy(_._1)
-      .map { case (_, length, content) => Vector.fill(length)(content).mkString }
-      .mkString
+  def prettyUnfragmentedFs(fs: UnfragmentedFileSystem): String = {
+    val fds = fs.values.toVector.sortBy(_.beginIx)
+    val dummyFd = CompressedFileDescriptor(-1, 0, 0)
+    fds.zipAll(fds.drop(1), dummyFd, dummyFd).map { case (curFd, nextFd) =>
+      val curFdStr = prettyFileId(curFd.fileId) * curFd.length
+      val freeSpaceStr = "." * (nextFd.beginIx - (curFd.beginIx + curFd.length))
+      curFdStr + freeSpaceStr
+    }.mkString
   }
 
   def task2(): Long = {
@@ -233,9 +233,9 @@ object Day9 {
     val freeSpaces = calcFreeSpaces(uncompressedFs)
     val unfragmentedFs = calcUnfragmentedFileSystem(uncompressedFs)
 
-    val (finalFreeSpaces, compressedUnfragmentedFs) = compressWithoutFragmentation(freeSpaces, unfragmentedFs)
+    val compressedUnfragmentedFs = compressWithoutFragmentation(freeSpaces, unfragmentedFs)
 
-    println(prettyUnfragmentedFs(finalFreeSpaces, compressedUnfragmentedFs))
+    println(prettyUnfragmentedFs(compressedUnfragmentedFs))
 
     calcChecksum(compressedUnfragmentedFs.values.toVector)
   }
@@ -248,5 +248,5 @@ object Day9 {
 0099811188827773336446555566
 
 00992111777.44.333....5555.6666.....8888..
-0099211177744.333..5555.6666..8888
+00992111777.44.333....5555.6666.....8888
 */
