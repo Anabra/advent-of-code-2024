@@ -1,6 +1,7 @@
 package adventofcode2024
 
 import scala.annotation.{nowarn, tailrec}
+import scala.collection.mutable
 
 object Day9 {
   def main(args: Array[String]): Unit = {
@@ -46,6 +47,108 @@ object Day9 {
       val emptyBlocks = Vector.fill(nextFd.beginningIx - (curFd.beginningIx + curFd.length))(".").mkString
       filledBlocks + emptyBlocks
     }.mkString
+  }
+
+  case class UncompressedFileDescriptor(
+    fileId: Int,
+    beginIx: Int,
+    numFilledBlocks: Int,
+    numEmptyBlocks: Int,
+  )
+
+  case class CompressedFileDescriptor(
+    fileId: Int,
+    beginIx: Int,
+    length: Int,
+  )
+
+  def compactFs(fs: Vector[UncompressedFileDescriptor]): Vector[CompressedFileDescriptor] = {
+    val compressedFs = mutable.Queue.empty[CompressedFileDescriptor]
+
+    def loop(
+      filePtrToFreeSpaceTarget: Int,
+      numFreeBlocksUsed: Int,
+      filePtrToCompressionTarget: Int,
+      numAlreadyCompressedBlocks: Int,
+    ): Vector[CompressedFileDescriptor] = {
+      val freeSpaceTarget = fs(filePtrToFreeSpaceTarget)
+      val compressionTarget = fs(filePtrToCompressionTarget)
+
+      val numAvailableBlocks = freeSpaceTarget.numEmptyBlocks - numFreeBlocksUsed
+      val numNeededBlocks = compressionTarget.numFilledBlocks - numAlreadyCompressedBlocks
+      val beginIxCompressedPart = freeSpaceTarget.beginIx + numFreeBlocksUsed
+
+      if (filePtrToFreeSpaceTarget < filePtrToCompressionTarget) {
+        if (numFreeBlocksUsed == 0) {
+          compressedFs.enqueue(
+            CompressedFileDescriptor(
+              fileId = freeSpaceTarget.fileId,
+              beginIx = freeSpaceTarget.beginIx,
+              length = freeSpaceTarget.numFilledBlocks,
+            )
+          )
+        }
+
+        if (numAvailableBlocks > numNeededBlocks) {
+          val newCompressedFd = CompressedFileDescriptor(
+            fileId = compressionTarget.fileId,
+            beginIx = beginIxCompressedPart,
+            length = numNeededBlocks,
+          )
+          compressedFs.enqueue(newCompressedFd)
+          loop(
+            filePtrToFreeSpaceTarget,
+            numFreeBlocksUsed + numNeededBlocks,
+            filePtrToCompressionTarget - 1,
+            0,
+          )
+        } else if (numAvailableBlocks < numNeededBlocks) {
+          val newCompressedFd = CompressedFileDescriptor(
+            fileId = compressionTarget.fileId,
+            beginIx = beginIxCompressedPart,
+            length = numAvailableBlocks,
+          )
+          compressedFs.enqueue(newCompressedFd)
+          loop(
+            filePtrToFreeSpaceTarget + 1,
+            0,
+            filePtrToCompressionTarget,
+            numAvailableBlocks,
+          )
+        } else if (numAvailableBlocks == numNeededBlocks) {
+          val newCompressedFd = CompressedFileDescriptor(
+            fileId = compressionTarget.fileId,
+            beginIx = beginIxCompressedPart,
+            length = numAvailableBlocks,
+          )
+          compressedFs.enqueue(newCompressedFd)
+          loop(
+            filePtrToFreeSpaceTarget + 1,
+            0,
+            filePtrToCompressionTarget - 1,
+            0,
+          )
+        } else {
+          throw new Exception("should never happen")
+        }
+      } else if (filePtrToFreeSpaceTarget == filePtrToCompressionTarget && numNeededBlocks > 0) {
+        val newCompressedFd = CompressedFileDescriptor(
+          fileId = compressionTarget.fileId,
+          beginIx = beginIxCompressedPart,
+          length = numNeededBlocks,
+        )
+        compressedFs.enqueue(newCompressedFd)
+        compressedFs.toVector
+      } else {
+        compressedFs.toVector
+      }
+    }
+
+    loop(0, 0, fs.size - 1, 0)
+  }
+
+  def checksum(fs: Vector[CompressedFileDescriptor]): Long = {
+    fs.map(fd => (fd.beginIx to fd.beginIx + fd.length).map(_ * fd.fileId.toLong).sum).sum
   }
 
   def task1(): Int = {
