@@ -1,23 +1,27 @@
 package adventofcode2024
 
 import scala.annotation.{nowarn, tailrec}
+import scala.collection.immutable.SortedSet
 import scala.collection.mutable
 
 object Day9 {
   def main(args: Array[String]): Unit = {
     println(task1())
+    println("-------------------------")
     println(task2())
   }
 
+  type FileId = Int
+
   case class UncompressedFileDescriptor(
-    fileId: Int,
+    fileId: FileId,
     beginIx: Int,
     numFilledBlocks: Int,
     numEmptyBlocks: Int,
   )
 
   case class CompressedFileDescriptor(
-    fileId: Int,
+    fileId: FileId,
     beginIx: Int,
     length: Int,
   )
@@ -144,7 +148,7 @@ object Day9 {
     loop(0, 0, fs.size - 1, 0)
   }
 
-  def checksum(fs: Vector[CompressedFileDescriptor]): Long = {
+  def calcChecksum(fs: Vector[CompressedFileDescriptor]): Long = {
     fs.map(fd => (fd.beginIx until fd.beginIx + fd.length).map(_ * fd.fileId.toLong).sum).sum
   }
 
@@ -157,12 +161,83 @@ object Day9 {
     println(compressedFs)
     println(prettyCompressedFileSystem(compressedFs))
 
-    checksum(compressedFs)
+    calcChecksum(compressedFs)
+  }
+
+  case class ContiguousFreeSpace(
+    beginIx: Int,
+    length: Int,
+  )
+
+  type FreeSpaces = Vector[ContiguousFreeSpace]
+  type UnfragmentedFileSystem = Map[FileId, CompressedFileDescriptor]
+
+  def calcFreeSpaces(uncompressedFs: Vector[UncompressedFileDescriptor]): FreeSpaces =
+    uncompressedFs.map(fd => ContiguousFreeSpace(fd.beginIx + fd.numFilledBlocks, fd.numEmptyBlocks))
+
+  def calcUnfragmentedFileSystem(uncompressedFs: Vector[UncompressedFileDescriptor]): UnfragmentedFileSystem =
+    uncompressedFs.map(fd => fd.fileId -> CompressedFileDescriptor(fd.fileId, fd.beginIx, fd.numFilledBlocks)).toMap
+
+  def moveToFreeSpace(
+    unusedfreeSpaces: FreeSpaces,
+    fs: UnfragmentedFileSystem,
+    fd: CompressedFileDescriptor,
+  ): (FreeSpaces, UnfragmentedFileSystem) = {
+    val neededSize = fd.length
+
+    val (tooSmallFreeSpaces, rest) = unusedfreeSpaces.span(_.length < neededSize)
+
+    rest match {
+      case Vector(bigEnoughFreeSpace, rest*) if bigEnoughFreeSpace.beginIx < fd.beginIx =>
+        val newFreeSpaces = if (bigEnoughFreeSpace.length == neededSize) {
+          tooSmallFreeSpaces ++ rest
+        } else {
+          val modifiedBlock = ContiguousFreeSpace(
+            beginIx = bigEnoughFreeSpace.beginIx + neededSize,
+            length = bigEnoughFreeSpace.length - neededSize,
+          )
+          tooSmallFreeSpaces ++ Vector(modifiedBlock) ++ rest // NOTE: we don't put back the space we moved from
+        }
+
+        val newFs = fs.updated(fd.fileId, fd.copy(beginIx = bigEnoughFreeSpace.beginIx))
+
+        (newFreeSpaces, newFs)
+      case _ => (unusedfreeSpaces, fs)
+    }
+  }
+
+  def compressWithoutFragmentation(
+    freeSpaces: FreeSpaces,
+    fs: UnfragmentedFileSystem,
+  ): (FreeSpaces, UnfragmentedFileSystem) = {
+    val sortedFileDescriptors = fs.values.toVector.sortBy(- _.fileId)
+
+    sortedFileDescriptors.foldLeft(freeSpaces -> fs) { case ((unusedFreeSpaces, fs), curFd) =>
+      moveToFreeSpace(unusedFreeSpaces, fs, curFd)
+    }
+  }
+
+  // TODO: print the spaces we moved from
+  def prettyUnfragmentedFs(freeSpaces: FreeSpaces, fs: UnfragmentedFileSystem): String = {
+    val rawFreeSpaces = freeSpaces.map(s => (s.beginIx, s.length, "."))
+    val rawFileBlocks = fs.values.map(fd => (fd.beginIx, fd.length, prettyFileId(fd.fileId)))
+    (rawFreeSpaces ++ rawFileBlocks)
+      .sortBy(_._1)
+      .map { case (_, length, content) => Vector.fill(length)(content).mkString }
+      .mkString
   }
 
   def task2(): Long = {
-    val fsIndex = readInput()
-    42
+    val uncompressedFs = readInput()
+
+    val freeSpaces = calcFreeSpaces(uncompressedFs)
+    val unfragmentedFs = calcUnfragmentedFileSystem(uncompressedFs)
+
+    val (finalFreeSpaces, compressedUnfragmentedFs) = compressWithoutFragmentation(freeSpaces, unfragmentedFs)
+
+    println(prettyUnfragmentedFs(finalFreeSpaces, compressedUnfragmentedFs))
+
+    calcChecksum(compressedUnfragmentedFs.values.toVector)
   }
 }
 /*
@@ -171,4 +246,7 @@ object Day9 {
 
 0099811188827773336446555566
 0099811188827773336446555566
+
+00992111777.44.333....5555.6666.....8888..
+0099211177744.333..5555.6666..8888
 */
