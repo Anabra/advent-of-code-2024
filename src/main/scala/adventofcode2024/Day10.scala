@@ -53,6 +53,8 @@ object Day10 {
         } else if (heightmap(curX)(curY) == 9) {
           loop(reachablePeaks + curPos, visited + curPos)
         } else {
+          // NOTE: due to the nature of the graph, lower points will always be visited first
+          // so we wouldn't even need to check against the visited set here
           todo.enqueueAll(getNeighbours(curPos, heightmap) -- visited)
           loop(reachablePeaks, visited + curPos)
         }
@@ -62,6 +64,7 @@ object Day10 {
     loop(Set.empty, Set.empty)
   }
 
+  // 566
   def task1(): Int = {
     val heightmap = readInput()
     val trailheads = findTrailheads(heightmap)
@@ -69,8 +72,38 @@ object Day10 {
     trailheads.flatMap(pos => calcTrailScore(heightmap, pos)).size
   }
 
+  def calcTrailRating(heightmap: Vector[Vector[Int]], startingPos: (Int, Int)): Int = {
+    val nonExistentPos = (-1, -1)
+    val todo = mutable.Queue(nonExistentPos -> startingPos)
+    val numTrailsLeadingToPos = mutable.Map[(Int, Int), Int]()
+
+    while (todo.nonEmpty) {
+      val (prevPos, curPos@(curX, curY)) = todo.dequeue()
+      val numTrailsLeadingToPrev = numTrailsLeadingToPos.getOrElse(prevPos, 1)
+      val numTrailsLeadingToCur = numTrailsLeadingToPos.getOrElse(curPos, 0)
+
+      val alreadyVisitedCurPos = numTrailsLeadingToCur > 0
+
+      // NOTE: due to the nature of the graph, lower points will always be visited first
+      // thus there's no need to retraverse the graph
+      if (alreadyVisitedCurPos) {
+        numTrailsLeadingToPos(curPos) = numTrailsLeadingToCur + numTrailsLeadingToPrev
+      } else {
+        numTrailsLeadingToPos(curPos) = numTrailsLeadingToPrev
+        val neighbours = getNeighbours(curPos, heightmap)
+        todo.enqueueAll(neighbours.map(curPos -> _))
+      }
+    }
+
+    numTrailsLeadingToPos.collect { case ((x,y), numTrails) if heightmap(x)(y) == 9  =>
+      numTrails
+    }.sum
+  }
+
   def task2(): Int = {
     val heightmap = readInput()
-    42
+    val trailheads = findTrailheads(heightmap)
+
+    trailheads.map(pos => calcTrailRating(heightmap, pos)).sum
   }
 }
