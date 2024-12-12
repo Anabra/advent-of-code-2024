@@ -1,6 +1,7 @@
 package adventofcode2024
 
 import scala.annotation.{nowarn, tailrec}
+import scala.collection.mutable
 
 object DayN {
   def main(args: Array[String]): Unit = {
