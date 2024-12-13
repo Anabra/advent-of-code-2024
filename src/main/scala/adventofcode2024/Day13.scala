@@ -44,9 +44,6 @@ object Day13 {
     }.toVector
   }
 
-  val costA = 3
-  val costB = 1
-
   case class LinearlyDependentInput(
     smaller: (Long, Long),
     multiplier: Long,
@@ -57,10 +54,10 @@ object Day13 {
 
   def calcLinearDependency(input: Input): Option[LinearlyDependentInput] = {
     val ((smaller, smallerCost), (bigger, biggerCost)) = if (input.a._1 < input.b._1){
-      (input.a -> costA, input.b -> costB)
+      (input.a -> input.aCost, input.b -> input.bCost)
     }
     else {
-      (input.b -> costB, input.a -> costA)
+      (input.b -> input.bCost, input.a -> input.aCost)
     }
     val (smaller1, smaller2) = smaller
     val (bigger1, bigger2) = bigger
@@ -81,7 +78,7 @@ object Day13 {
     }
   }
 
-  def solveLinearlyDependentInput(linDepInput: LinearlyDependentInput): Option[Long] = {
+  def solveLinearlyDependentInput(linDepInput: LinearlyDependentInput, originalInput: Input): Option[(Long, Long)] = {
     val LinearlyDependentInput(
       (smaller1, smaller2),
       multiplier,
@@ -95,28 +92,41 @@ object Day13 {
       val smallerIsCheaper = smallerCost <= biggerCost
       val biggerDivides = t1 % bigger1 == 0 && t2 % bigger2 == 0
 
-      (smallerIsCheaper, biggerDivides) match {
+      val (smallerCount, biggerCount) = (smallerIsCheaper, biggerDivides) match {
         case (true,  false) =>
-          Some((t1 / smaller1) * smallerCost)
-        case (false, true) =>
-          Some((t1 / bigger1) * biggerCost)
+          if (multiplier * smallerCost < biggerCost) {
+            (t1 / smaller1) -> 0L
+          } else {
+            val biggerCount = t1 / bigger1
+            val smallerCount = (t1 % bigger1) / smaller1
+            smallerCount -> biggerCount
+          }
         case (true,  true)  =>
           if (multiplier * smallerCost < biggerCost) {
-            Some((t1 / smaller1) * smallerCost)
+            (t1 / smaller1) -> 0L
           } else {
-            Some((t1 / bigger1) * biggerCost)
+            0L -> (t1 / bigger1)
           }
+        case (false, true) =>
+          0L -> (t1 / bigger1)
         case (false, false) =>
           val biggerCount = t1 / bigger1
           val smallerCount = (t1 % bigger1) / smaller1
-          Some(smallerCount * smallerCost + biggerCount * biggerCost)
+          smallerCount -> biggerCount
+      }
+
+      // swap it back
+      if (originalInput.a == linDepInput.smaller) {
+        Some(smallerCount -> biggerCount)
+      } else {
+        Some(biggerCount -> smallerCount)
       }
     } else {
       None
     }
   }
 
-  def solveLinearlyIndependentInput(input: Input): Option[Long] = {
+  def solveLinearlyIndependentInput(input: Input): Option[(Long, Long)] = {
     val (a1, a2) = input.a
     val (b1, b2) = input.b
     val (t1, t2) = input.t
@@ -129,24 +139,34 @@ object Day13 {
     val t2Recalculated = n * a2 + m * b2
 
     if (t1Recalculated == t1 && t2Recalculated == t2) {
-      Some(n * input.aCost + m * input.bCost)
+      Some((n, m))
     } else {
       None
     }
   }
 
-  def calcSolution(input: Input): Option[Long] = {
+  def calcSolution(input: Input): Option[(Long, Long)] = {
     calcLinearDependency(input) match {
       case Some(linDepInput) =>
-        solveLinearlyDependentInput(linDepInput)
+        solveLinearlyDependentInput(linDepInput, input)
       case None =>
         solveLinearlyIndependentInput(input)
     }
   }
 
+  def calcTokens(input: Input, aCount: Long, bCount: Long): Long =
+    aCount * input.aCost + bCount * input.bCost
+
+  def calcTotalPrice(inputs: Vector[Input]): Long =
+    inputs
+      .flatMap(in => calcSolution(in).map(in -> _))
+      .map { case (input, (aCount, bCount)) => calcTokens(input, aCount, bCount) }
+      .sum
+
+
   def task1(): Long = {
     val inputs = readInput()
-    inputs.flatMap(calcSolution).sum
+    calcTotalPrice(inputs)
   }
 
   def task2(): Long = {
@@ -156,39 +176,88 @@ object Day13 {
       val (t1, t2) = input.t
       input.copy(t = (t1 + extra, t2 + extra))
     }
-    biiiiiiigInputs.flatMap(calcSolution).sum
+    calcTotalPrice(biiiiiiigInputs)
   }
 
-  def testEdgeCase(input: Input, expected: Option[Long]): Unit = {
+  def testEdgeCase(input: Input, expected: Option[(Long | Int, Long | Int)]): Unit = {
     val actual = calcSolution(input)
     assert(actual == expected, s"expected: $expected, actual: $actual")
   }
 
   def testEdgeCases(): Unit = {
     Seq(
-      Input(
-        a = (10, 10),
-        b = (1, 1),
-        t = (20, 20),
-        aCost = 3,
-        bCost = 1,
-      ) -> Some(6L),
-
+      // smaller cheaper
       Input(
         a = (1, 1),
         b = (10, 10),
         t = (20, 20),
-        aCost = 3,
-        bCost = 1,
-      ) -> Some(2L),
+        aCost = 2,
+        bCost = 21,
+      ) -> Some(20 -> 0),
 
+      // equal price
+      Input(
+        a = (1, 1),
+        b = (10, 10),
+        t = (20, 20),
+        aCost = 2,
+        bCost = 20,
+      ) -> Some(0 -> 2),
+
+      // bigger cheaper
+      Input(
+        a = (1, 1),
+        b = (10, 10),
+        t = (20, 20),
+        aCost = 2,
+        bCost = 19,
+      ) -> Some(0 -> 2),
+
+      // bigger cheaper but wont fit
       Input(
         a = (1, 1),
         b = (10, 10),
         t = (21, 21),
         aCost = 3,
-        bCost = 1,
-      ) -> Some(5L),
+        bCost = 2,
+      ) -> Some(1 -> 2),
+
+      // bigger cheaper, but only proportionally and it wont fit
+      Input(
+        a = (1, 1),
+        b = (10, 10),
+        t = (21, 21),
+        aCost = 2,
+        bCost = 10,
+      ) -> Some(1 -> 2),
+
+      // bigger cheaper, but cant be used at all
+      Input(
+        a = (1, 1),
+        b = (40, 40),
+        t = (20, 20),
+        aCost = 3,
+        bCost = 2,
+      ) -> Some(20 -> 0),
+
+      // can swap coords part 1
+      Input(
+        a = (1, 1),
+        b = (10, 10),
+        t = (20, 20),
+        aCost = 3,
+        bCost = 2,
+      ) -> Some(0 -> 2),
+
+      // can swap coords part 2
+      Input(
+        a = (10, 10),
+        b = (1, 1),
+        t = (20, 20),
+        aCost = 3,
+        bCost = 2,
+      ) -> Some(2 -> 0),
+
     ).foreach { case (input, expected) =>
       testEdgeCase(input, expected)
     }
