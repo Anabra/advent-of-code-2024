@@ -17,6 +17,8 @@ object Day13 {
     a: (Long, Long),
     b: (Long, Long),
     t: (Long, Long),
+    aCost: Long,
+    bCost: Long,
   )
 
   def extractNumbers(pattern: Regex, line: String): (Long, Long) = line match {
@@ -36,6 +38,8 @@ object Day13 {
         extractNumbers(buttonPattern, a),
         extractNumbers(buttonPattern, b),
         extractNumbers(prizePattern,  t),
+        3,
+        1,
       )
     }.toVector
   }
@@ -125,7 +129,7 @@ object Day13 {
     val t2Recalculated = n * a2 + m * b2
 
     if (t1Recalculated == t1 && t2Recalculated == t2) {
-      Some(3 * n + m)
+      Some(n * input.aCost + m * input.bCost)
     } else {
       None
     }
@@ -148,7 +152,10 @@ object Day13 {
   def task2(): Long = {
     val inputs = readInput()
     val extra = 10000000000000L
-    val biiiiiiigInputs = inputs.map { case Input(a, b, (t1 ,t2)) => Input(a, b, (t1 + extra, t2 + extra)) }
+    val biiiiiiigInputs = inputs.map { case input =>
+      val (t1, t2) = input.t
+      input.copy(t = (t1 + extra, t2 + extra))
+    }
     biiiiiiigInputs.flatMap(calcSolution).sum
   }
 
@@ -162,6 +169,8 @@ object Day13 {
       a = (10,10),
       b = (1,1),
       t = (20,20),
+      aCost = 3,
+      bCost = 1,
     )
     val notLinearlyIndependent_favorExpensive_solution = (2, 0)
 
@@ -169,6 +178,8 @@ object Day13 {
       a = (1, 1),
       b = (10, 10),
       t = (20, 20),
+      aCost = 3,
+      bCost = 1,
     )
     val notLinearlyIndependent_favorCheap_solution = (0, 2)
 
@@ -176,6 +187,8 @@ object Day13 {
       a = (1, 1),
       b = (10, 10),
       t = (21, 21),
+      aCost = 3,
+      bCost = 1,
     )
     val notLinearlyIndependent_needExpensive_solution = (1, 2)
 
