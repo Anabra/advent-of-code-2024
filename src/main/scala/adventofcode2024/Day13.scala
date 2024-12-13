@@ -9,7 +9,7 @@ object Day13 {
   def main(args: Array[String]): Unit = {
     assert(task1() == 25751L)
     assert(task2() == 108528956728655L)
-//    testEdgeCases()
+    testEdgeCases()
     println("All tests passed!")
   }
 
@@ -159,44 +159,36 @@ object Day13 {
     biiiiiiigInputs.flatMap(calcSolution).sum
   }
 
-  def testEdgeCase(input: Input, expected: (Int, Int)): Unit = {
+  def testEdgeCase(input: Input, expected: Option[Long]): Unit = {
     val actual = calcSolution(input)
-    assert(actual.contains(expected), s"expected: $expected, actual: $actual")
+    assert(actual == expected, s"expected: $expected, actual: $actual")
   }
 
   def testEdgeCases(): Unit = {
-    val notLinearlyIndependent_favorExpensive = Input(
-      a = (10,10),
-      b = (1,1),
-      t = (20,20),
-      aCost = 3,
-      bCost = 1,
-    )
-    val notLinearlyIndependent_favorExpensive_solution = (2, 0)
-
-    val notLinearlyIndependent_favorCheap = Input(
-      a = (1, 1),
-      b = (10, 10),
-      t = (20, 20),
-      aCost = 3,
-      bCost = 1,
-    )
-    val notLinearlyIndependent_favorCheap_solution = (0, 2)
-
-    val notLinearlyIndependent_needExpensive = Input(
-      a = (1, 1),
-      b = (10, 10),
-      t = (21, 21),
-      aCost = 3,
-      bCost = 1,
-    )
-    val notLinearlyIndependent_needExpensive_solution = (1, 2)
-
-
     Seq(
-      notLinearlyIndependent_favorExpensive -> notLinearlyIndependent_favorExpensive_solution,
-      notLinearlyIndependent_favorCheap -> notLinearlyIndependent_favorCheap_solution,
-      notLinearlyIndependent_needExpensive -> notLinearlyIndependent_needExpensive_solution,
+      Input(
+        a = (10, 10),
+        b = (1, 1),
+        t = (20, 20),
+        aCost = 3,
+        bCost = 1,
+      ) -> Some(6L),
+
+      Input(
+        a = (1, 1),
+        b = (10, 10),
+        t = (20, 20),
+        aCost = 3,
+        bCost = 1,
+      ) -> Some(2L),
+
+      Input(
+        a = (1, 1),
+        b = (10, 10),
+        t = (21, 21),
+        aCost = 3,
+        bCost = 1,
+      ) -> Some(5L),
     ).foreach { case (input, expected) =>
       testEdgeCase(input, expected)
     }
