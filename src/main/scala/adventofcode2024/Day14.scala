@@ -79,6 +79,24 @@ object Day14 {
     positionsByQuadrants.map(_.size).product
   }
 
+  def prettyPrintMap(dimX: Int, dimY: Int, positions: Vector[(Int, Int)]): Unit = {
+    val positionsSet = positions.toSet
+    for {
+      y <- 0 until dimY
+      x <- 0 until dimX
+    } {
+      if (positionsSet.contains((x, y))) {
+        print("X")
+      } else {
+        print(".")
+      }
+
+      if (x == dimX - 1) {
+        println()
+      }
+    }
+  }
+
   def tests(): Unit = {
     val (smallX, smallY) = (11, 7)
 
@@ -100,15 +118,28 @@ object Day14 {
   }
 
   def task1(): Int = {
-    val (smallX, smallY) = (101, 103)
-    val robots =readInput()
+    val (dimX, dimY) = (101, 103)
+    val robots = readInput()
     val time = 100
 
-    calcSafetyScore(smallX, smallY, time)(robots)
+    calcSafetyScore(dimX, dimY, time)(robots)
   }
 
   def task2(): Int = {
+    val (dimX, dimY) = (101, 103)
     val robots = readInput()
+
+    val startTime = 3400
+    val endTime = startTime + 100
+    (startTime to endTime).foreach { t =>
+      println(s"Time: ${t}")
+      val robotFinalPositions = robots.map(simulateRobot(dimX, dimY, t))
+      prettyPrintMap(dimX, dimY, robotFinalPositions)
+      println("")
+    }
+
     42
   }
 }
+
+// 3000 - 10000
