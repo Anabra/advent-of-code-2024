@@ -89,30 +89,15 @@ object Day13 {
 
     if (t1 % smaller1 == 0 && t2 % smaller2 == 0) {
       val (bigger1, bigger2) = (smaller1 * multiplier, smaller2 * multiplier)
-      val smallerIsCheaper = smallerCost <= biggerCost
+      val smallerIsProportionallyCheaper = multiplier * smallerCost < biggerCost
       val biggerDivides = t1 % bigger1 == 0 && t2 % bigger2 == 0
 
-      val (smallerCount, biggerCount) = (smallerIsCheaper, biggerDivides) match {
-        case (true,  false) =>
-          if (multiplier * smallerCost < biggerCost) {
-            (t1 / smaller1) -> 0L
-          } else {
-            val biggerCount = t1 / bigger1
-            val smallerCount = (t1 % bigger1) / smaller1
-            smallerCount -> biggerCount
-          }
-        case (true,  true)  =>
-          if (multiplier * smallerCost < biggerCost) {
-            (t1 / smaller1) -> 0L
-          } else {
-            0L -> (t1 / bigger1)
-          }
-        case (false, true) =>
-          0L -> (t1 / bigger1)
-        case (false, false) =>
-          val biggerCount = t1 / bigger1
-          val smallerCount = (t1 % bigger1) / smaller1
-          smallerCount -> biggerCount
+      val (smallerCount, biggerCount) = if (smallerIsProportionallyCheaper) {
+        (t1 / smaller1) -> 0L
+      } else {
+        val biggerCount = t1 / bigger1
+        val smallerCount = (t1 % bigger1) / smaller1
+        smallerCount -> biggerCount
       }
 
       // swap it back
