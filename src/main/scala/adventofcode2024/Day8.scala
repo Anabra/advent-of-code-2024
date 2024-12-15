@@ -1,6 +1,7 @@
 package adventofcode2024
 
 import scala.annotation.{nowarn, tailrec}
+import adventofcode2024.common.iterateWhile
 
 object Day8 {
   def main(args: Array[String]): Unit = {
@@ -64,18 +65,6 @@ object Day8 {
     } else {
       None
     }
-  }
-
-  def iterateWhile[T](init: T)(f: T => Option[T]): Vector[T] = {
-    @tailrec
-    def loop(cur: T, elemsSoFar: Vector[T]): Vector[T] = {
-      f(cur) match {
-        case Some(next) => loop(next, elemsSoFar :+ next)
-        case None => elemsSoFar
-      }
-    }
-
-    loop(init, Vector.empty)
   }
 
   def calcPairAntinodesWithInfDistance(dimX: Int, dimY: Int, antenna1: (Int, Int), antenna2: (Int, Int)): Set[(Int, Int)] = {
