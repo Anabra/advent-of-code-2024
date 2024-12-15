@@ -1,9 +1,11 @@
 package adventofcode2024
 
+import adventofcode2024.Day15.WarehouseObject.Robot
+
 import scala.annotation.{nowarn, tailrec}
 import scala.collection.mutable
 import adventofcode2024.common.{Coords, iterateWhile}
-import adventofcode2024.common.VectorVectorExtensions._
+import adventofcode2024.common.VectorVectorExtensions.*
 
 object Day15 {
   def main(args: Array[String]): Unit = {
@@ -11,7 +13,12 @@ object Day15 {
     println(task2())
   }
 
-  type WarehouseMap = Vector[Vector[Char]]
+  enum WarehouseObject:
+    case Wall, Empty, Box, Robot
+
+  import WarehouseObject.*
+
+  type WarehouseMap = Vector[Vector[WarehouseObject]]
 
   case class Input(
     warehouse: WarehouseMap,
@@ -25,7 +32,15 @@ object Day15 {
 
     val (mapLines, _ +: movesLines) = lines.span(_.nonEmpty)
 
-    val map = mapLines.map(_.toVector)
+    val warehouse = mapLines.map { line =>
+      line.toVector.map {
+        case '.' => Empty
+        case '#' => Wall
+        case 'O' => Box
+        case '@' => Robot
+      }
+    }
+
     val moves = movesLines.mkString.toVector.map {
       case '^' => Coords(-1, 0)
       case 'v' => Coords(1, 0)
@@ -33,18 +48,24 @@ object Day15 {
       case '<' => Coords(0, -1)
     }
 
-    Input(map, moves)
+    Input(warehouse, moves)
   }
 
   def findRobot(map: WarehouseMap): Coords = {
-    val x = map.indexWhere(_.contains('@'))
-    val y = map(x).indexOf('@')
+    val x = map.indexWhere(_.contains(Robot))
+    val y = map(x).indexOf(Robot)
     Coords(x, y)
   }
 
-  def prettyPrintWarehouse(map: WarehouseMap): Unit = {
-    map.foreach { row =>
-      println(row.mkString)
+  def prettyPrintWarehouse(warehouse: WarehouseMap): Unit = {
+    warehouse.foreach { row =>
+      val prettyRow = row.map {
+        case Wall  => '#'
+        case Empty => '.'
+        case Box   => 'O'
+        case Robot => '@'
+      }
+      println(prettyRow.mkString)
     }
   }
 
@@ -56,21 +77,22 @@ object Day15 {
     val firstBoxCoords@Coords(fstBoxX, fstBoxY) = robotPos + move
     // could do this with an iterator
     val boxCoordsInDirection = iterateWhile(firstBoxCoords) { pos =>
-      if (pos.isWithinBounds(dimX, dimY) && warehouse(pos.x)(pos.y) == 'O') {
-        Some(pos + move)
+      val newPos = pos + move
+      if (newPos.isWithinBounds(dimX, dimY) && warehouse(newPos.x)(newPos.y) == Box) {
+        Some(newPos)
       } else {
         None
       }
     }
     val firstNonBoxCoords@Coords(fstNonBoxX, fstNonBoxY) = boxCoordsInDirection.last + move
     warehouse(fstNonBoxX)(fstNonBoxY) match {
-      case '#' =>
+      case Wall =>
         (robotPos, warehouse)
-      case '.' =>
-        val newWarehouse = warehouse 
-          .updated(firstNonBoxCoords, 'O')
-          .updated(firstBoxCoords, '@')
-          .updated(robotPos, '.')
+      case Empty =>
+        val newWarehouse = warehouse
+          .updated(firstNonBoxCoords, Box)
+          .updated(firstBoxCoords, Robot)
+          .updated(robotPos, Empty)
         (firstBoxCoords, newWarehouse)
       case x =>
         throw new Exception(s"Unexpected object. coords: ${firstNonBoxCoords}, object: '${x}'")
@@ -88,9 +110,9 @@ object Day15 {
     val newRobotsPosObject = warehouse(newRX)(newRY)
     // assuming the map is surrounded by walls
     newRobotsPosObject match {
-      case '#' => (robotPos, warehouse)
-      case '.' => (newRobotPos, warehouse.updated(newRobotPos, '@').updated(robotPos, '.'))
-      case 'O' => shiftBoxes(robotPos, warehouse, move)
+      case Wall  => (robotPos, warehouse)
+      case Empty => (newRobotPos, warehouse.updated(newRobotPos, Robot).updated(robotPos, Empty))
+      case Box   => shiftBoxes(robotPos, warehouse, move)
     }
   }
 
