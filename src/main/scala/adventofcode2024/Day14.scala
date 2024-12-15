@@ -97,6 +97,18 @@ object Day14 {
     }
   }
 
+  def calcNumNeighbours(positions: Set[(Int, Int)], range: Int)(pos: (Int, Int)): Int = {
+    val (x, y) = pos
+    val otherPositions = positions - pos
+
+    val neighbourCoords = for {
+      neighbourX <- x - range to x + range
+      neighbourY <- y - range to y + range
+    } yield (neighbourX, neighbourY)
+
+    neighbourCoords.toSet.intersect(otherPositions).size
+  }
+
   def tests(): Unit = {
     val (smallX, smallY) = (11, 7)
 
@@ -130,12 +142,18 @@ object Day14 {
     val robots = readInput()
 
     val startTime = 3400
-    val endTime = startTime + 100
-    (startTime to endTime).foreach { t =>
-      println(s"Time: ${t}")
+    val endTime = startTime + 1000
+    (startTime to 10000).foreach { t =>
       val robotFinalPositions = robots.map(simulateRobot(dimX, dimY, t))
-      prettyPrintMap(dimX, dimY, robotFinalPositions)
-      println("")
+      val robotFinalPositionsSet = robotFinalPositions.toSet
+      val numNeighboursVector = robotFinalPositionsSet.toVector.map(calcNumNeighbours(robotFinalPositionsSet, 2))
+      val numberOfRobotsWithEnoughNeighbours = numNeighboursVector.filter(_ >= 2).size
+
+      if (numberOfRobotsWithEnoughNeighbours >= robotFinalPositionsSet.size * 0.5) {
+        println(s"Time: ${t}")
+        prettyPrintMap(dimX, dimY, robotFinalPositions)
+        println("")
+      }
     }
 
     42
