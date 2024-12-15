@@ -26,7 +26,7 @@ object Day15 {
   )
 
   def readInput(): Input = {
-    val bufferedSource = io.Source.fromResource("day15_small.txt")
+    val bufferedSource = io.Source.fromResource("day15.txt")
     val lines = bufferedSource.getLines.toVector
     bufferedSource.close
 
@@ -100,9 +100,6 @@ object Day15 {
   }
 
   def simulate(robotPos: Coords, warehouse: WarehouseMap, move: Coords): (Coords, WarehouseMap) = {
-    println(s"Robot pos: ${robotPos}, move: ${move}")
-    prettyPrintWarehouse(warehouse)
-    println("")
     val dimX = warehouse.size
     val dimY = warehouse.head.size
     val newRobotPos@Coords(newRX, newRY) = robotPos + move
@@ -114,6 +111,21 @@ object Day15 {
       case Empty => (newRobotPos, warehouse.updated(newRobotPos, Robot).updated(robotPos, Empty))
       case Box   => shiftBoxes(robotPos, warehouse, move)
     }
+  }
+
+  def calcGpsCoord(coords: Coords): Int = {
+    coords.x * 100 + coords.y
+  }
+
+  def collectBoxCoords(warehouse: WarehouseMap): Vector[Coords] = {
+    val dimX = warehouse.size
+    val dimY = warehouse.head.size
+    val coords = for {
+      x <- 0 until dimX
+      y <- 0 until dimY
+      if warehouse(x)(y) == Box
+    } yield Coords(x, y)
+    coords.toVector
   }
 
   def task1(): Int = {
@@ -128,7 +140,7 @@ object Day15 {
     println(moves)
     prettyPrintWarehouse(finalWarehouse)
 
-    42
+    collectBoxCoords(finalWarehouse).map(calcGpsCoord).sum
   }
 
   def task2(): Int = {
