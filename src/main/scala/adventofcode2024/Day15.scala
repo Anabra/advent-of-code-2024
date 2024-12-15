@@ -11,22 +11,6 @@ object Day15 {
     println(Task2.run())
   }
 
-  def readPreparsedInput(): (Vector[Vector[Char]], Vector[Coords]) = {
-    val bufferedSource = io.Source.fromResource("day15.txt")
-    val lines = bufferedSource.getLines.toVector
-    bufferedSource.close
-
-    val (warehouseLines, _ +: movesLines) = lines.span(_.nonEmpty)
-    val moves = movesLines.mkString.toVector.map {
-      case '^' => Coords(-1, 0)
-      case 'v' => Coords(1, 0)
-      case '>' => Coords(0, 1)
-      case '<' => Coords(0, -1)
-    }
-
-    (warehouseLines.map(_.toVector), moves)
-  }
-
   object Task1 {
     enum WarehouseObject:
       case Wall, Empty, Box, Robot
@@ -41,15 +25,26 @@ object Day15 {
     )
 
     def readInput(): Input = {
-      val (warehouse, moves) = readPreparsedInput()
+      val bufferedSource = io.Source.fromResource("day15_tiny.txt")
+      val lines = bufferedSource.getLines.toVector
+      bufferedSource.close
 
-      val parsedWarehouse = warehouse.map { row =>
-        row.map {
+      val (warehouseLines, _ +: movesLines) = lines.span(_.nonEmpty)
+
+      val parsedWarehouse = warehouseLines.map { row =>
+        row.toVector.map {
           case '.' => Empty
           case '#' => Wall
           case 'O' => Box
           case '@' => Robot
         }
+      }
+
+      val moves = movesLines.mkString.toVector.map {
+        case '^' => Coords(-1, 0)
+        case 'v' => Coords(1, 0)
+        case '>' => Coords(0, 1)
+        case '<' => Coords(0, -1)
       }
 
       Input(parsedWarehouse, moves)
@@ -103,6 +98,7 @@ object Day15 {
       }
     }
 
+    @nowarn("msg=exhaustive")
     def simulate(robotPos: Coords, warehouse: WarehouseMap, move: Coords): (Coords, WarehouseMap) = {
       val dimX = warehouse.size
       val dimY = warehouse.head.size
@@ -140,8 +136,6 @@ object Day15 {
         simulate(curRobotPos, curWarehouse, move)
       }
 
-      println(robotPos)
-      println(moves)
       prettyPrintWarehouse(finalWarehouse)
 
       collectBoxCoords(finalWarehouse).map(calcGpsCoord).sum
@@ -149,8 +143,55 @@ object Day15 {
   }
 
   object Task2 {
+    enum WarehouseObject:
+      case Wall, Empty, Robot
+      // This could be extended to n*m boxes
+      // The internal coords describe the relative position of the box parts within the box
+      // It'd be relatively easy to collect all coords for a box
+      case BoxPart(dimX: Int, dimY: Int, internalCoords: Coords)
+
+    import WarehouseObject.*
+
+    type WarehouseMap = Vector[Vector[WarehouseObject]]
+
+    case class Input(
+      warehouse: WarehouseMap,
+      moves: Vector[Coords],
+    )
+
+    def readInput(): Input = {
+      import Task1.{WarehouseObject => NarrowWarehouseObject}
+
+      val Task1.Input(smallWarehouse, moves) = Task1.readInput()
+      val wideWarehouse = smallWarehouse.map { row =>
+        row.flatMap {
+          case NarrowWarehouseObject.Wall  => Vector(WarehouseObject.Wall, WarehouseObject.Wall)
+          case NarrowWarehouseObject.Empty => Vector(WarehouseObject.Empty, WarehouseObject.Empty)
+          case NarrowWarehouseObject.Box   => Vector(WarehouseObject.BoxPart(1, 2, Coords(0,0)), WarehouseObject.BoxPart(1, 2, Coords(0,1)))
+          case NarrowWarehouseObject.Robot => Vector(WarehouseObject.Robot, WarehouseObject.Empty)
+        }
+      }
+
+      Input(wideWarehouse, moves)
+    }
+
+    // Pretty printing could become complex for n*m boxes, so we will hard-code it for the 1*2 case to match the visuals in the examples
+    def prettyPrintWarehouse(warehouse: WarehouseMap): Unit = {
+      warehouse.foreach { row =>
+        val prettyRow = row.map {
+          case Wall => '#'
+          case Empty => '.'
+          case BoxPart(1, 2, Coords(0,0)) => '['
+          case BoxPart(1, 2, Coords(0,1)) => ']'
+          case Robot => '@'
+        }
+        println(prettyRow.mkString)
+      }
+    }
+
     def run(): Int = {
-      val fsIndex = readPreparsedInput()
+      val Input(warehouse, moves) = readInput()
+      prettyPrintWarehouse(warehouse)
       42
     }
 
