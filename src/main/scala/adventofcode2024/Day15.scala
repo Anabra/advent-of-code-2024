@@ -2,8 +2,7 @@ package adventofcode2024
 
 import scala.annotation.{nowarn, tailrec}
 import scala.collection.mutable
-import adventofcode2024.common.{Coords, iterateWhile}
-import adventofcode2024.common.VectorVectorExtensions.*
+import adventofcode2024.common.{Coords, iterateWhile, updated}
 
 object Day15 {
   def main(args: Array[String]): Unit = {

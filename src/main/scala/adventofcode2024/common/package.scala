@@ -22,12 +22,10 @@ package object common {
 
     loop(init, Vector(init))
   }
-  
-  object VectorVectorExtensions {
-    implicit class VectorVectorOps[T](val vv: Vector[Vector[T]]) extends AnyVal {
-      def updated(coords: Coords, value: T): Vector[Vector[T]] = {
-        vv.updated(coords.x, vv(coords.x).updated(coords.y, value))
-      }
+
+  extension [T](vv: Vector[Vector[T]]) {
+    def updated(coords: Coords, value: T): Vector[Vector[T]] = {
+      vv.updated(coords.x, vv(coords.x).updated(coords.y, value))
     }
   }
 }
