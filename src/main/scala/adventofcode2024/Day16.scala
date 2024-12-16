@@ -8,7 +8,6 @@ import scala.collection.mutable
 object Day16 {
   def main(args: Array[String]): Unit = {
     println(task1())
-    println(task2())
   }
 
   enum MazeObject {
@@ -27,7 +26,7 @@ object Day16 {
   type Maze = Vector[Vector[MazeObject]]
 
   def readInput(): Maze = {
-    val bufferedSource = io.Source.fromResource("day16_medium.txt")
+    val bufferedSource = io.Source.fromResource("day16_small.txt")
     val lines = bufferedSource.getLines.toVector
     bufferedSource.close
 
@@ -56,6 +55,14 @@ object Day16 {
       }
     }
     mazeWithMoves.map(_.mkString).mkString("\n")
+  }
+
+  def prettyMazeWithAllOptimalRouteTiles(maze: Maze, tilesOnOptimalRoutes: Set[Coords]): String = {
+    val mazeWithoutRoute = maze.map(_.map(_.pretty))
+    val mazeWithTiles = tilesOnOptimalRoutes.foldLeft(mazeWithoutRoute) { case (curMaze, curTile) =>
+      curMaze.updated(curTile, "O")
+    }
+    mazeWithTiles.map(_.mkString).mkString("\n")
   }
 
   def findStartEnd(maze: Maze): (Coords, Coords) = {
@@ -92,7 +99,7 @@ object Day16 {
       }
   }
 
-  def tracebackRoute(maze: Maze, visits: Map[Coords, Move]): Vector[Coords] = {
+  def tracebackARoute(maze: Maze, visits: Map[Coords, Move]): Vector[Coords] = {
     val (startPos, endPos) = findStartEnd(maze)
 
     @tailrec
@@ -108,52 +115,82 @@ object Day16 {
     loop(endPos, Vector.empty)
   }
 
-  def findCheapestRoute(startPos: Coords, endPos: Coords, maze: Maze): (Vector[Coords], Int) = {
-    val initialMove = Move(startPos - Coords(0,1), startPos, 0) // we start facing East
+  def findAlLCoordsOnAnyOptimalPath(maze: Maze, visits: Map[Coords, Set[Move]]): Set[Coords] = {
+    val (startPos, endPos) = findStartEnd(maze)
+    val todo = mutable.Queue(endPos)
+
+    @tailrec
+    def loop(coordsOnOptimalPaths: Set[Coords]): Set[Coords] = {
+      if (todo.isEmpty) {
+        coordsOnOptimalPaths
+      } else {
+        val curPos = todo.dequeue()
+
+        if (coordsOnOptimalPaths.contains(curPos) || curPos == startPos) {
+          loop(coordsOnOptimalPaths)
+        } else {
+          val moves = visits(curPos)
+          val minCost = moves.map(_.cost).min
+          val nextPositionsWithMinCost = moves.filter(_.cost == minCost).map(_.from)
+          todo.enqueueAll(nextPositionsWithMinCost)
+          loop(coordsOnOptimalPaths + curPos)
+        }
+      }
+    }
+
+    loop(Set.empty)
+  }
+
+  type Direction = Coords
+
+  def findOptimalRoute(startPos: Coords, endPos: Coords, maze: Maze): (Vector[Coords], Int, Set[Coords]) = {
+    val preStartFictionalCoord = startPos - Coords(0,1) // to account for facing east
+    val initialMove = Move(preStartFictionalCoord, startPos, 0)
     val todo = mutable.PriorityQueue(initialMove)(Ordering.by[Move, Int](_.cost).reverse)
 
     @tailrec
-    def loop(visited: Map[Coords, Move]): Map[Coords, Move] = {
+    def loop(visited: Map[(Coords), Set[Move]]): Map[Coords, Set[Move]] = {
       if (todo.isEmpty) {
         visited
       } else {
         val moveToProcess = todo.dequeue()
-        if (visited.contains(moveToProcess.to)) {
-          // no need to check here, Dijkstra guarantees that if we visited a node, it was on the optimal path
-          loop(visited)
-        } else if (maze.at(moveToProcess.to) == MazeObject.End) {
-          visited + (moveToProcess.to -> moveToProcess)
-        } else {
-          val newMoves = calcProgressingMoves(maze, moveToProcess)
-          todo.enqueue(newMoves.toVector*)
-          loop(visited + (moveToProcess.to -> moveToProcess))
+        visited.get(moveToProcess.to) match {
+          case Some(prevVisit) =>
+            loop(visited.updated(moveToProcess.to, prevVisit + moveToProcess))
+          case None =>
+            if (maze.at(moveToProcess.to) == MazeObject.End) {
+              loop(visited.updated(moveToProcess.to, Set(moveToProcess)))
+            } else {
+              val newMoves = calcProgressingMoves(maze, moveToProcess)
+              todo.enqueue(newMoves.toVector*)
+              loop(visited + (moveToProcess.to -> Set(moveToProcess)))
+            }
         }
       }
     }
 
     val visits = loop(Map.empty)
-    val optimalRoute = tracebackRoute(maze, visits)
-    val cost = visits(endPos).cost
+    val optimalRoute = tracebackARoute(maze, visits.view.mapValues(_.head).toMap)
+    val cost = visits(endPos).head.cost
 
-    optimalRoute -> cost
+    val coordsOnAnyOptimalPaths = findAlLCoordsOnAnyOptimalPath(maze, visits)
+
+    (optimalRoute, cost, coordsOnAnyOptimalPaths)
   }
 
-  def task1(): Int = {
+  def task1(): (Int, Int) = {
     val maze = readInput()
     println(prettyMaze(maze))
 
     val (startPos, endPos) = findStartEnd(maze)
-    val (optimalRoute, cost) = findCheapestRoute(startPos, endPos, maze)
+    val (optimalRoute, cost, tilesOnOptimalRoutes) = findOptimalRoute(startPos, endPos, maze)
 
     println()
     println(prettyMazeWithRoute(maze, optimalRoute))
+    println()
+    println(prettyMazeWithAllOptimalRouteTiles(maze, tilesOnOptimalRoutes))
 
-    cost
-  }
-
-  def task2(): Int = {
-    val fsIndex = readInput()
-    42
+    cost -> tilesOnOptimalRoutes.size
   }
 }
 
