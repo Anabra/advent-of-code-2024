@@ -142,6 +142,21 @@ object Day15 {
   }
 
   object Task2 {
+    val boxInside = '⃞'
+
+    val verticalBoxTop = '⎴'
+    val verticalBoxBottom = '⎵'
+
+    val horizontalBoxLeft = '['
+    val horizontalBoxRight = ']'
+
+    val normalBoxTopLeft = '┌'
+    val normalBoxTopRight = '┐'
+    val normalBoxBottomLeft = '└'
+    val normalBoxBottomRight = '┘'
+    val normalBoxHorizontalEdge = '─'
+    val normalBoxVerticalEdge = '│'
+
     enum WarehouseObject:
       case Wall, Empty, Robot
       // This could be extended to n*m boxes
