@@ -38,13 +38,6 @@ package object common {
     loop(init, Vector(init))
   }
 
-  // could be made more efficient with iterators
-  def iterateTillFixPoint[T](init: T)(f: T => T): T =
-    iterateWhile(init) { curElem =>
-      val nextElem = f(curElem)
-      if (curElem == nextElem) None else Some(nextElem)
-    }.last
-
   extension [T](vv: Vector[Vector[T]]) {
     def updated(coords: Coords, value: T): Vector[Vector[T]] = {
       vv.updated(coords.x, vv(coords.x).updated(coords.y, value))
