@@ -27,7 +27,7 @@ object Day16 {
   type Maze = Vector[Vector[MazeObject]]
 
   def readInput(): Maze = {
-    val bufferedSource = io.Source.fromResource("day16.txt")
+    val bufferedSource = io.Source.fromResource("day16_medium.txt")
     val lines = bufferedSource.getLines.toVector
     bufferedSource.close
 
@@ -41,6 +41,21 @@ object Day16 {
 
   def prettyMaze(maze: Maze): String = {
     maze.map(_.map(_.pretty).mkString).mkString("\n")
+  }
+
+  def prettyMazeWithRoute(maze: Maze, route: Vector[Coords]): String = {
+    val mazeWithoutRoute = maze.map(_.map(_.pretty))
+    val routeWithoutStart = route.drop(1)
+    val moves = routeWithoutStart.zip(routeWithoutStart.drop(1)).map { case (from, to) => Move(from, to, 0) }
+    val mazeWithMoves = moves.foldLeft(mazeWithoutRoute) { case (curMaze, curMove) =>
+      curMove.direction match {
+        case Coords(0,  1) => curMaze.updated(curMove.from, ">")
+        case Coords(0, -1) => curMaze.updated(curMove.from, "<")
+        case Coords(1,  0) => curMaze.updated(curMove.from, "v")
+        case Coords(-1, 0) => curMaze.updated(curMove.from, "^")
+      }
+    }
+    mazeWithMoves.map(_.mkString).mkString("\n")
   }
 
   def findStartEnd(maze: Maze): (Coords, Coords) = {
@@ -94,7 +109,7 @@ object Day16 {
   }
 
   def findCheapestRoute(startPos: Coords, endPos: Coords, maze: Maze): (Vector[Coords], Int) = {
-    val initialMove = Move(startPos, startPos, 0)
+    val initialMove = Move(startPos - Coords(0,1), startPos, 0) // we start facing East
     val todo = mutable.PriorityQueue(initialMove)(Ordering.by[Move, Int](_.cost).reverse)
 
     @tailrec
@@ -129,6 +144,9 @@ object Day16 {
 
     val (startPos, endPos) = findStartEnd(maze)
     val (optimalRoute, cost) = findCheapestRoute(startPos, endPos, maze)
+
+    println()
+    println(prettyMazeWithRoute(maze, optimalRoute))
 
     cost
   }
