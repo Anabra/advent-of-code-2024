@@ -245,6 +245,7 @@ object Day16 {
               }
             case None =>
               if (maze.at(moveToProcess.to.pos) == MazeObject.End) {
+                // TODO: not correct, we should explore all route, and if we find the END, we should cut off all route that are longer
                 visited + (moveToProcess.to -> Set(moveToProcess))
               } else {
                 val newMoves = calcProgressingMoves(maze, moveToProcess)
