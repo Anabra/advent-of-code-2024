@@ -7,14 +7,14 @@ import scala.collection.mutable
 
 object Day17 {
   def main(args: Array[String]): Unit = {
-    println(task1())
+//    println(task1())
     println(task2())
   }
 
   case class State(
-    a: Int,
-    b: Int,
-    c: Int,
+    a: Long,
+    b: Long,
+    c: Long,
     instructionPtr: Int,
     out: Vector[Int],
   ) {
@@ -31,7 +31,7 @@ object Day17 {
   import OpCode.*
 
   def readInput(): (Program, State) = {
-    val bufferedSource = io.Source.fromResource("day17.txt")
+    val bufferedSource = io.Source.fromResource("day17_momo.txt")
     val lines = bufferedSource.getLines.toVector
     bufferedSource.close
 
@@ -51,7 +51,7 @@ object Day17 {
     program -> State(regA, regB, regC, 0, Vector())
   }
 
-  def evalComboOperand(state: State, operand: Int): Int =
+  def evalComboOperand(state: State, operand: Int): Long =
     operand match {
       case x if (0 to 3).contains(x) => x
       case 4 => state.a
@@ -60,9 +60,9 @@ object Day17 {
       case 7 => throw new Exception("Reserved operand!")
     }
 
-  def evalDivision(state: State, evaluatedComboOperandValue: Int): Int = {
+  def evalDivision(state: State, evaluatedComboOperandValue: Long): Long = {
     val numerator = state.a
-    val denominator = 1 << evaluatedComboOperandValue
+    val denominator = 1L << evaluatedComboOperandValue
     numerator / denominator
   }
 
@@ -91,7 +91,7 @@ object Day17 {
         val result = state.b ^ state.c
         state.copy(b = result).nextInstruction
       case OUT =>
-        val result = combo % 8
+        val result = (combo % 8).toInt
         state.copy(out = state.out :+ result).nextInstruction
       case BDV =>
         val result = evalDivision(state, combo)
@@ -104,6 +104,7 @@ object Day17 {
 
   @tailrec
   def evalProgram(program: Program, state: State): State = {
+//    println(state)
     if (state.instructionPtr + 1 >= program.size) {
       state
     } else {
@@ -113,6 +114,37 @@ object Day17 {
       val newState = evalOperation(state, opcode, operand)
       evalProgram(program, newState)
     }
+  }
+
+  @tailrec
+  def evalProgramWithTermination(program: Program, state: State): Option[State] = {
+    if (program.zip(state.out).exists(_ != _)) {
+      None
+    } else if (state.instructionPtr + 1 >= program.size) {
+      if (program == state.out) {
+        Some(state)
+      } else {
+        None
+      }
+    } else {
+      val rawOpCode = program(state.instructionPtr)
+      val opcode = OpCode.fromOrdinal(rawOpCode)
+      val operand = program(state.instructionPtr + 1)
+      val newState = evalOperation(state, opcode, operand)
+      evalProgramWithTermination(program, newState)
+    }
+  }
+
+  def crackProgram(program: Program, begin: Long = 0): Option[State] = {
+    val baseState = State(0, 0, 0, 0, Vector())
+
+    Iterator
+      .iterate(begin)(_ + 1)
+      .map(initA => baseState.copy(a = initA))
+      .find { initState =>
+        if (initState.a % 1000000 == 0) println(s"processing: ${initState.a}")
+        evalProgramWithTermination(program, initState).isDefined
+      }
   }
 
   def task1(): String = {
@@ -125,10 +157,21 @@ object Day17 {
     finalState.prettyOut
   }
 
-  def task2(): Int = {
-    val fsIndex = readInput()
-    42
+  def task2(): String = {
+    val (program, state) = readInput()
+
+//    println(program)
+//    println(state)
+
+    val begin = 35186035000000L
+
+    println("BEGIN")
+    crackProgram(program, begin).match {
+      case None => "NOT FOUND"
+      case Some(state) => state.a.toString
+    }
   }
 }
 
 // not 7,2,4,7,0,3,7,1,3
+// 281474976710656L / 8
