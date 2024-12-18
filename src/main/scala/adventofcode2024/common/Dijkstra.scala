@@ -49,7 +49,6 @@ object Dijkstra {
     def routes: RouteTracerIterator[Node] = RouteTracerIterator(end, visits)
   }
 
-  // TODO: test this with Day16
   def exploreSingleOptimalRoute[Graph, Node](
     graph: Graph,
     start: Node,
@@ -86,6 +85,7 @@ object Dijkstra {
     }
   }
 
+  // TODO: test this with Day16
   def exploreAllOptimalRoutes[Graph, Node](
     graph: Graph,
     start: Node,
@@ -95,6 +95,7 @@ object Dijkstra {
     val fictionalStartMove = Move(start, start, 0L)
     val todo = mutable.PriorityQueue[Move[Node]](fictionalStartMove)(Ordering.by[Move[Node], Cost](_.cost).reverse)
 
+    // TODO: multiple ends?
     @tailrec
     def loop(visits: Map[Node, Set[Move[Node]]], endOpt: Option[Node]): Option[MultiRouteResult[Node]] = {
       if (todo.isEmpty) {
