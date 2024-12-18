@@ -1,6 +1,7 @@
 package adventofcode2024
 
 import adventofcode2024.common.*
+import adventofcode2024.common.Dijkstra.{Move, Result}
 
 import scala.annotation.{nowarn, tailrec}
 import scala.collection.mutable
@@ -23,13 +24,13 @@ object Day18 {
     }
   }
 
-  case class Move(
-    from: Coords,
-    to: Coords,
-    cost: Int,
+  case class MemorySection(
+    dimX: Int,
+    dimY: Int,
+    corruptedCoords: Set[Coords],
   )
 
-  def getNeighbours(dimX: Int, dimY: Int, prevMove: Move, corruptedCoords: Set[Coords]): Set[Move] = {
+  def getNeighbours(memorySection: MemorySection, prevMove: Move[Coords]): Set[Move[Coords]] = {
     val directions = Set(
       Coords(0, 1),
       Coords(0, -1),
@@ -38,31 +39,9 @@ object Day18 {
     )
     directions
       .map(prevMove.to + _)
-      .filter(_.isWithinBounds(dimX, dimY))
-      .diff(corruptedCoords)
+      .filter(_.isWithinBounds(memorySection.dimX, memorySection.dimY))
+      .diff(memorySection.corruptedCoords)
       .map(coords => Move(prevMove.to, coords, prevMove.cost + 1))
-  }
-
-  def traceBackSingleOptimalPath(
-    visited: Map[Coords, Move],
-    start: Coords,
-    end: Coords,
-  ): Option[Vector[Coords]] = {
-    @tailrec
-    def loop(curState: Coords, path: Vector[Coords]): Vector[Coords] = {
-      if (curState == start) {
-        path
-      } else {
-        val curMove = visited(curState)
-        loop(curMove.from, curState +: path)
-      }
-    }
-
-    if (visited.contains(end)) {
-      Some(loop(end, Vector.empty))
-    } else {
-      None
-    }
   }
 
   def findOptimalRoute(
@@ -72,32 +51,14 @@ object Day18 {
     end: Coords,
     corruptedCoords: Set[Coords],
   ): Option[Vector[Coords]] = {
-    val fictionalStartMove = Move(start, start, 0)
-    val todo = mutable.PriorityQueue[Move](fictionalStartMove)(Ordering.by[Move, Int](_.cost).reverse)
+    val result = Dijkstra.findOptimalRoute[MemorySection, Coords](
+      MemorySection(dimX, dimY, corruptedCoords),
+      Coords(0,0),
+      (node: Coords) => node == Coords(dimX - 1, dimY - 1),
+      getNeighbours
+    )
 
-    @tailrec
-    def loop(visited: Map[Coords, Move]): Map[Coords, Move] = {
-      if (todo.isEmpty) {
-        visited
-      } else {
-        val curMove = todo.dequeue()
-        visited.get(curMove.to) match {
-          case Some(_) =>
-            loop(visited)
-          case None =>
-            if (curMove.to == end) {
-              visited.updated(curMove.to, curMove)
-            } else {
-              val neighbours = getNeighbours(dimX, dimY, curMove, corruptedCoords)
-              todo.enqueue(neighbours.toSeq*)
-              loop(visited.updated(curMove.to, curMove))
-            }
-        }
-      }
-    }
-
-    val visited = loop(Map.empty) - start
-    traceBackSingleOptimalPath(visited, start, end)
+    result.flatMap(_.traceBackSingleOptimalPath)
   }
 
   def prettyMemorySection(dimX: Int, dimY: Int, corruptedBlocks: Set[Coords], path: Vector[Coords] = Vector()): String = {
