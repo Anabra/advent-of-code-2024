@@ -3,6 +3,7 @@ package adventofcode2024.common
 import scala.annotation.tailrec
 import scala.collection.mutable
 
+// TODO: geeralize the solution for finding all paths
 object Dijkstra {
   type Cost = Long
 
