@@ -10,8 +10,8 @@ object DayN {
     println(task2())
   }
 
-  def readInput(): Vector[Int] = {
-    val bufferedSource = io.Source.fromResource("dayN.txt")
+  def readInput(path: String): Vector[Int] = {
+    val bufferedSource = io.Source.fromResource(path)
     val lines = bufferedSource.getLines.toVector
     bufferedSource.close
 
@@ -19,13 +19,13 @@ object DayN {
   }
 
   def task1(): Int = {
-    val fsIndex = readInput()
+    val fsIndex = readInput("dayN.txt")
 
     42
   }
 
   def task2(): Int = {
-    val fsIndex = readInput()
+    val fsIndex = readInput("dayN.txt")
     42
   }
 }

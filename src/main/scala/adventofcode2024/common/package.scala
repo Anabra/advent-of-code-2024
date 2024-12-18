@@ -24,6 +24,13 @@ package object common {
         y <- from.y to to.y
       } yield Coords(x, y)
     }.toVector
+
+    def rangeExclusive(from: Coords, to: Coords): Vector[Coords] = {
+      for {
+        x <- from.x until to.x
+        y <- from.y until to.y
+      } yield Coords(x, y)
+    }.toVector
   }
 
   def iterateWhile[T](init: T)(f: T => Option[T]): Vector[T] = {
