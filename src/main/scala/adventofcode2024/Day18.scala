@@ -51,7 +51,7 @@ object Day18 {
     end: Coords,
     corruptedCoords: Set[Coords],
   ): Option[Vector[Coords]] = {
-    val result = Dijkstra.findOptimalRoute[MemorySection, Coords](
+    val result = Dijkstra.exploreSingleOptimalRoute[MemorySection, Coords](
       MemorySection(dimX, dimY, corruptedCoords),
       Coords(0,0),
       (node: Coords) => node == Coords(dimX - 1, dimY - 1),
