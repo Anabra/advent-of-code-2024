@@ -7,7 +7,7 @@ import scala.collection.mutable
 
 object Day17 {
   def main(args: Array[String]): Unit = {
-//    println(task1())
+    println(task1())
     println(task2())
   }
 
@@ -31,7 +31,7 @@ object Day17 {
   import OpCode.*
 
   def readInput(): (Program, State) = {
-    val bufferedSource = io.Source.fromResource("day17_momo.txt")
+    val bufferedSource = io.Source.fromResource("day17.txt")
     val lines = bufferedSource.getLines.toVector
     bufferedSource.close
 
@@ -40,7 +40,7 @@ object Day17 {
 
     val (registerLines, programLines) = lines.span(_.nonEmpty)
     val (regA, regB, regC) = registerLines.map {
-      case registerPattern(rawRegValue) => rawRegValue.toInt
+      case registerPattern(rawRegValue) => rawRegValue.toLong
     } match {
       case Vector(a, b, c) => (a, b, c)
     }
@@ -147,6 +147,152 @@ object Day17 {
       }
   }
 
+  type Bit = Int
+  type BitTriplet = Vector[Bit] // always 3 bits, lowest bit first
+  case class Constraint(
+    beginIx: Int,
+    fixedBits: Vector[Bit]
+  ) {
+    def indexedBits = fixedBits.zipWithIndex.map { case (bit, ix) => (bit, ix + beginIx)}
+  }
+
+  def flipAll(bits: BitTriplet): BitTriplet = {
+    bits.zip(Vector(1, 1, 1)).map((a, b) => a ^ b)
+  }
+
+  def flipLastTwo(bits: BitTriplet): BitTriplet = {
+    bits.zip(Vector(1, 1, 0)).map((a, b) => a ^ b)
+  }
+
+  def flipSnd(bits: BitTriplet): BitTriplet = {
+    bits.zip(Vector(0, 1, 0)).map((a, b) => a ^ b)
+  }
+
+  def calcBase10(bitTriplet: BitTriplet): Long = {
+    bitTriplet.reverse.foldLeft(0L) { case (acc, bit) => acc * 2 + bit }
+  }
+
+  def calcBitsPad3(numBase10: Int): Vector[Bit] = {
+    numBase10.toBinaryString.map(_.asDigit).reverse.padTo(3, 0).toVector
+  }
+
+  // momo's
+  def calcDirectConstraint(
+    curLowestIndex: Int,
+    aBits: BitTriplet,
+    expected: BitTriplet
+  ): Constraint = {
+    val whatBWillBeBeforeXorC = flipSnd(aBits)
+    val whatBWillBeAfterXorC = flipLastTwo(expected)
+    val whatCShouldBe = whatBWillBeBeforeXorC.zip(whatBWillBeAfterXorC).map { case (a, b) => a ^ b }
+    assert(whatBWillBeBeforeXorC.size == 3)
+    val bAsBase10 = calcBase10(whatBWillBeBeforeXorC).toInt
+    Constraint(curLowestIndex + bAsBase10, whatCShouldBe)
+  }
+
+  def applyConstraint(unsetBits: PartiallyUnsetBitVector, constraint: Constraint): Option[PartiallyUnsetBitVector] = {
+    val newBitsOpt = constraint.indexedBits.foldLeft(Option(unsetBits.bits)) {
+      case (None, _) => None
+      case (acc@Some(curABits), (fixedBit, ix)) =>
+        if (ix < unsetBits.bits.size) {
+          if (curABits(ix).forall(_ == fixedBit)) {
+            Some(curABits.updated(ix, Some(fixedBit)))
+          } else {
+            None
+          }
+        } else {
+          if (fixedBit == 0) {
+            acc
+          } else {
+            None
+          }
+        }
+    }
+    newBitsOpt.map(newBits => unsetBits.copy(bits = newBits))
+  }
+
+  def generatePossibleTriplets(partiallySetTriplet: Vector[Option[Bit]]): Set[Vector[Bit]] = {
+    partiallySetTriplet.foldLeft(Set(Vector.empty[Bit])) { case (prefixesSoFar, curBitOpt) =>
+      curBitOpt match {
+        case Some(b) => prefixesSoFar.map(_ :+ b)
+        case None => prefixesSoFar.map(_ :+ 0) ++ prefixesSoFar.map(_ :+ 1)
+      }
+    }
+  }
+
+  case class PartiallyUnsetBitVector(
+    lowestUnprocessedIx: Int,
+    bits: Vector[Option[Int]],
+  ) {
+    // TODO: cats traverse
+    def resolve: Option[Vector[Int]] = {
+      if (bits.forall(_.isDefined)) {
+        Some(bits.map(_.get))
+      } else {
+        None
+      }
+    }
+
+    def fixBits(fromIx: Int, bits: Vector[Bit]): PartiallyUnsetBitVector = {
+      bits.map(Option.apply).zipWithIndex.foldLeft(this) { case (state, (curBit, relativeIx)) =>
+        val absIx = relativeIx + fromIx
+        state.copy(
+          lowestUnprocessedIx = state.lowestUnprocessedIx + 1,
+          bits = state.bits.updated(absIx, curBit),
+        )
+      }
+    }
+  }
+
+  def calcNextPossibleStates(
+    expectedBits: Vector[Bit],
+    partiallyUnsetBits: PartiallyUnsetBitVector,
+  ): Set[PartiallyUnsetBitVector] = {
+    val curIndex = partiallyUnsetBits.lowestUnprocessedIx
+    val aBits = partiallyUnsetBits.bits
+    val expectedBitTriplet = expectedBits.slice(curIndex, curIndex + 3)
+    val lowestUnsetBitTriplet = aBits.slice(curIndex, curIndex + 3)
+    val possibleTriplets = generatePossibleTriplets(lowestUnsetBitTriplet)
+    val newStatesWithConstraints = possibleTriplets.map { triplet =>
+      val tripletApplied = partiallyUnsetBits.fixBits(curIndex, triplet)
+      val constraint = calcDirectConstraint(curIndex, triplet, expectedBitTriplet)
+      tripletApplied -> constraint
+    }
+    newStatesWithConstraints.flatMap { case (st, constraint) => applyConstraint(st, constraint) }
+  }
+
+  def krakkDaNumbaaah(expectedOutput: Vector[Int]): Long = {
+    val expectedOutputBits = expectedOutput.flatMap(calcBitsPad3)
+    val initABits = Vector.fill(expectedOutputBits.size)(Option.empty[Int])
+
+    val todo = mutable.Queue(PartiallyUnsetBitVector(0, initABits))
+
+    @tailrec
+    def loop(visited: Set[PartiallyUnsetBitVector], solutions: Set[Vector[Bit]]): Long = {
+      if (todo.isEmpty) {
+        solutions.map(calcBase10).min
+      } else {
+        val curState = todo.dequeue()
+        if (visited.contains(curState)) {
+          loop(visited, solutions)
+        } else {
+          if (curState.lowestUnprocessedIx >= curState.bits.size) {
+            curState.resolve match {
+              case Some(resolvedBits) => loop(visited + curState, solutions + resolvedBits)
+              case None => loop(visited + curState, solutions)
+            }
+          } else {
+            val nextPossibilities = calcNextPossibleStates(expectedOutputBits, curState)
+            todo.enqueueAll(nextPossibilities)
+            loop(visited + curState, solutions)
+          }
+        }
+      }
+    }
+
+    loop(Set.empty, Set.empty)
+  }
+
   def task1(): String = {
     val (program, state) = readInput()
     val finalState = evalProgram(program, state)
@@ -157,21 +303,10 @@ object Day17 {
     finalState.prettyOut
   }
 
-  def task2(): String = {
+  def task2(): Long = {
     val (program, state) = readInput()
 
-//    println(program)
-//    println(state)
-
-    val begin = 35186035000000L
-
     println("BEGIN")
-    crackProgram(program, begin).match {
-      case None => "NOT FOUND"
-      case Some(state) => state.a.toString
-    }
+    krakkDaNumbaaah(program)
   }
 }
-
-// not 7,2,4,7,0,3,7,1,3
-// 281474976710656L / 8
