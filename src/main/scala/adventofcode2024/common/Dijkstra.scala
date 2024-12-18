@@ -13,7 +13,7 @@ object Dijkstra {
     cost: Cost,
   )
 
-  case class Result[Node](
+  case class SingleRouteResult[Node](
     end: Node,
     visits: Map[Node, Move[Node]]
   ) {
@@ -44,14 +44,14 @@ object Dijkstra {
     start: Node,
     isEnd: Node => Boolean,
     nextMoves: (Graph, Move[Node]) => Set[Move[Node]],
-  ): Option[Result[Node]] = {
+  ): Option[SingleRouteResult[Node]] = {
     val fictionalStartMove = Move(start, start, 0L)
     val todo = mutable.PriorityQueue[Move[Node]](fictionalStartMove)(Ordering.by[Move[Node], Cost](_.cost).reverse)
 
     @tailrec
-    def loop(visited: Map[Node, Move[Node]], endOpt: Option[Node]): Option[Result[Node]] = {
+    def loop(visited: Map[Node, Move[Node]], endOpt: Option[Node]): Option[SingleRouteResult[Node]] = {
       if (todo.isEmpty) {
-        endOpt.map(end => Result(end, visited))
+        endOpt.map(end => SingleRouteResult(end, visited))
       } else {
         val curMove = todo.dequeue()
         visited.get(curMove.to) match {
@@ -59,7 +59,7 @@ object Dijkstra {
             loop(visited, endOpt)
           case None =>
             if (isEnd(curMove.to)) {
-              Some(Result(curMove.to, visited.updated(curMove.to, curMove)))
+              Some(SingleRouteResult(curMove.to, visited.updated(curMove.to, curMove)))
             } else {
               val neighbours = nextMoves(graph, curMove)
               todo.enqueue(neighbours.toSeq *)

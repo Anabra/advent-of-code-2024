@@ -1,7 +1,7 @@
 package adventofcode2024
 
 import adventofcode2024.common.*
-import adventofcode2024.common.Dijkstra.{Move, Result}
+import adventofcode2024.common.Dijkstra.{Move, SingleRouteResult}
 
 import scala.annotation.{nowarn, tailrec}
 import scala.collection.mutable
