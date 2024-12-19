@@ -41,12 +41,18 @@ object Dijkstra {
   }
 
   case class MultiRouteResult[Node](
-    end: Node,
+    ends: Set[Node], // non-empy
     visits: Map[Node, Set[Move[Node]]],
   ) {
-    def cost: Cost = visits(end).head.cost
+    def cost: Cost = visits(ends.head).head.cost
 
-    def routes: RouteTracerIterator[Node] = RouteTracerIterator(end, visits)
+    def routeIterator: RouteTracerIterator[Node] = ends
+      .map(end => RouteTracerIterator(end, visits))
+      .reduce((lhs, rhs) => (lhs ++ rhs).asInstanceOf[RouteTracerIterator[Node]])
+
+    def numRoutes: Long = ends
+      .map(end => RouteTracerIterator(end, visits).numRoutes)
+      .sum
   }
 
   def exploreSingleOptimalRoute[Graph, Node](
@@ -97,35 +103,39 @@ object Dijkstra {
 
     // TODO: multiple ends?
     @tailrec
-    def loop(visits: Map[Node, Set[Move[Node]]], endOpt: Option[Node]): Option[MultiRouteResult[Node]] = {
+    def loop(visits: Map[Node, Set[Move[Node]]], ends: Set[Node]): Option[MultiRouteResult[Node]] = {
       if (todo.isEmpty) {
-        endOpt.map(end => MultiRouteResult(end, visits))
+        if (ends.nonEmpty) {
+          Some(MultiRouteResult(ends, visits))
+        } else {
+          None
+        }
       } else {
         val curMove = todo.dequeue()
         visits.get(curMove.to) match {
           case Some(prevMoves) =>
             if (prevMoves.forall(_.cost == curMove.cost)) {
               val newVisits = visits.updated(curMove.to, prevMoves + curMove)
-              loop(newVisits, endOpt)
+              loop(newVisits, ends)
             } else if (prevMoves.exists(_.cost > curMove.cost)) {
               throw new IllegalStateException("When we visit a node for the first time, it should be on an optimal path. However, we found a new 'more optimal' path to an already visited node.")
             } else {
-              loop(visits, endOpt)
+              loop(visits, ends)
             }
           case None =>
             val newVisits = visits.updated(curMove.to, Set(curMove)) // safe, wasnt in it previously
             if (isEnd(curMove.to)) {
-              loop(newVisits, Some(curMove.to))
+              loop(newVisits, ends + curMove.to)
             } else {
               val neighbours = nextMoves(graph, curMove)
               todo.enqueue(neighbours.toSeq *)
-              loop(newVisits, endOpt)
+              loop(newVisits, ends)
             }
         }
       }
     }
 
-    val resultOpt = loop(Map.empty, None)
+    val resultOpt = loop(Map.empty, Set.empty)
     resultOpt.map { result =>
       result.copy(visits = result.visits - start) // to account for the fictional init move
     }
@@ -144,7 +154,8 @@ class RouteTracerIterator[Node](
   override def next(): Vector[Node] = {
     val curRoute@Vector(curNode, rest*) = todo.pop()
     visits.get(curNode) match {
-      case None => curRoute
+      case None =>
+        curRoute
       case Some(movesToProcess) =>
         val newNodes = movesToProcess.map(_.from)
         val newRoutes = newNodes.map(_ +: curRoute)
@@ -152,4 +163,67 @@ class RouteTracerIterator[Node](
         next()
     }
   }
+
+  def numRoutes: Long = {
+    val revGraph = visits.view.mapValues(_.map(_.from)).toMap
+    val originalGraph = Utils.reverseGraph(revGraph)
+    val toposortedNodes = Utils.toposort(originalGraph)
+
+    val numRoutesTo = toposortedNodes.foldLeft(Map.empty[Node, Long]) { case (numRoutesFromStartTo, curNode) =>
+      val prevNodes = revGraph.getOrElse(curNode, Set.empty)
+      val numRoutesToPrevs = prevNodes.map(prev => numRoutesFromStartTo.getOrElse(prev, 0L)).sum
+      numRoutesFromStartTo.updated(curNode, numRoutesToPrevs)
+    }
+
+    numRoutesTo(end)
+  }
+}
+
+object Utils {
+  def reverseGraph[Node](graph: Map[Node, Set[Node]]): Map[Node, Set[Node]] = {
+    val edges = graph.toSet.flatMap { case (parent, children) =>
+      children.map(child => child -> parent)
+    }
+
+    edges
+      .groupBy(_._1)
+      .view
+      .mapValues(_.map(_._2))
+      .toMap
+  }
+
+  // this is a custom BFS-based, tailrec version
+  // TODO: optimize data structures
+  // TODO: maybe we could use Kahn's algorithm
+  def toposort[Node](graph: Map[Node, Set[Node]]): Vector[Node] = {
+    val toVisit = collection.mutable.Queue.empty[Node]
+
+    val revGraph = reverseGraph(graph)
+
+    val roots: Set[Node] = {
+      val allNodes = graph.keySet
+      val allChildren = graph.values.flatten.toSet
+      allNodes -- allChildren
+    }
+
+    toVisit.enqueueAll(roots)
+
+    @tailrec
+    def toposortHelper(sorted: Vector[Node]): Vector[Node] =
+      if (toVisit.isEmpty) {
+        sorted
+      } else {
+        val next = toVisit.dequeue()
+        lazy val parents = revGraph.getOrElse(next, Vector.empty)
+        if (sorted.contains(next) || parents.exists(!sorted.contains(_))) {
+          toposortHelper(sorted)
+        } else {
+          toVisit.enqueueAll(graph.getOrElse(next, Vector.empty))
+          toposortHelper(sorted :+ next)
+        }
+      }
+
+    toposortHelper(Vector.empty)
+  }
+
 }
