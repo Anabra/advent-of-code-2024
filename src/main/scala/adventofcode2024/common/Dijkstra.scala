@@ -132,12 +132,13 @@ object Dijkstra {
   }
 }
 
-case class RouteTracerIterator[Node](
+class RouteTracerIterator[Node](
   end: Node,
   visits: Map[Node, Set[Move[Node]]],
 ) extends Iterator[Vector[Node]] {
   private val todo = mutable.Stack[Vector[Node]](Vector(end))
 
+  // TODO: is this correct?
   override def hasNext: Boolean = todo.nonEmpty
 
   override def next(): Vector[Node] = {
