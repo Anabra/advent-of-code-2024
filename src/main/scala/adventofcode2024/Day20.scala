@@ -1,9 +1,10 @@
 package adventofcode2024
 
 import adventofcode2024.common.*
+import adventofcode2024.common.graphs.*
+import adventofcode2024.common.graphs.Dijkstra.Move
 
 import scala.annotation.{nowarn, tailrec}
-import scala.collection.mutable
 
 object Day20 {
   def main(args: Array[String]): Unit = {
@@ -40,13 +41,39 @@ object Day20 {
     }
   }
 
+  def findStart(track: RaceTrack): Coords = {
+    track.findElem(_ == Start).get
+  }
+
+  def calcNextMoves(track: RaceTrack, prevMove: Move[Coords]): Set[Move[Coords]] = {
+    val progressingNeighbours = track.neighboursOf(prevMove.to)
+      .filter { pos =>
+        track.at(pos).exists((obj: TrackObject) => obj != Wall)
+      } - prevMove.to - prevMove.from
+
+    progressingNeighbours.map { nextPos =>
+      Move(from = prevMove.to, to = nextPos, cost = prevMove.cost + 1)
+    }
+  }
+
   def prettyTrack(track: RaceTrack): String = {
     track.map(_.map(_.pretty).mkString).mkString("\n")
   }
 
   def task1(): Int = {
     val track = readInput("day20_small.txt")
+    val start = findStart(track)
+
     println(prettyTrack(track))
+    println(start)
+
+    val shortestPathOpt = Dijkstra.exploreSingleOptimalRoute(
+      graph = track,
+      start = start,
+      isEnd = (pos: Coords) => track.at(pos).contains(End),
+      nextMoves = calcNextMoves
+    )
+    println(s"cost: ${shortestPathOpt.get.cost}")
     42
   }
 

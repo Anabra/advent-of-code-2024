@@ -1,6 +1,7 @@
 package adventofcode2024
 
-import adventofcode2024.common._
+import adventofcode2024.common.*
+import adventofcode2024.common.graphs.*
 import scala.annotation.{nowarn, tailrec}
 import scala.collection.mutable
 

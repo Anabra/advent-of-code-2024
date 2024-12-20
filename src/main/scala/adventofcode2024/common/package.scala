@@ -1,5 +1,7 @@
 package adventofcode2024
 
+import adventofcode2024.Day20.TrackObject.Start
+
 import scala.annotation.tailrec
 
 package object common {
@@ -34,7 +36,7 @@ package object common {
 
     val directions = Set(
       Coords(0,  1),
-      Coords(1,  1),
+      Coords(1,  0),
       Coords(0, -1),
       Coords(-1, 0),
     )
@@ -68,5 +70,12 @@ package object common {
     def neighboursOf(coords: Coords): Set[Coords] = Coords.directions
       .map(dir => coords + dir)
       .filter(dest => dest.isWithinBounds(vv.size, vv.head.size))
+
+    def findElem(pred: T => Boolean): Option[Coords] = {
+      val x = Coords
+        .rangeExclusive(Coords(0,0), Coords(vv.size, vv.head.size))
+
+      x.find(pos => vv.at(pos).exists(pred))
+    }
   }
 }
