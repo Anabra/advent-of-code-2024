@@ -50,6 +50,9 @@ object Dijkstra {
       .map(end => RouteTracerIterator(end, visits))
       .reduce((lhs, rhs) => (lhs ++ rhs).asInstanceOf[RouteTracerIterator[Node]])
 
+    /**
+     * Same as `routeIterator.size`, but much more efficient. It doesn't materialize routes.
+     */
     def numRoutes: Long = ends
       .map(end => RouteTracerIterator(end, visits).numRoutes)
       .sum
@@ -151,6 +154,7 @@ class RouteTracerIterator[Node](
   // TODO: is this correct?
   override def hasNext: Boolean = todo.nonEmpty
 
+  // will throw if called without a `hasNext` guard
   override def next(): Vector[Node] = {
     val curRoute@Vector(curNode, rest*) = todo.pop()
     visits.get(curNode) match {
@@ -164,18 +168,36 @@ class RouteTracerIterator[Node](
     }
   }
 
-  def numRoutes: Long = {
+  /**
+   * Much more efficient version of `size`. It doesn't materialize all the routes.
+   * It doesn't consume the iterator.
+   */
+  lazy val numRoutes: Long = {
+    // We need to reverse the graph so that we can index into it with `end`
+    // `visits` is basically the "reverse graph" of the original graph, so we are restoring the original graph here.
     val revGraph = visits.view.mapValues(_.map(_.from)).toMap
     val originalGraph = Utils.reverseGraph(revGraph)
     val toposortedNodes = Utils.toposort(originalGraph)
 
     val numRoutesTo = toposortedNodes.foldLeft(Map.empty[Node, Long]) { case (numRoutesFromStartTo, curNode) =>
       val prevNodes = revGraph.getOrElse(curNode, Set.empty)
-      val numRoutesToPrevs = prevNodes.map(prev => numRoutesFromStartTo.getOrElse(prev, 0L)).sum
+      val numRoutesToPrevs = prevNodes
+        .toVector
+        .map(prev => numRoutesFromStartTo.getOrElse(prev, 0L))
+        .reduceOption(_ + _)
+        .getOrElse(1L) // if it had no parents, it must be a root
       numRoutesFromStartTo.updated(curNode, numRoutesToPrevs)
     }
 
     numRoutesTo(end)
+  }
+
+  override def size: Int = {
+    if (numRoutes > Int.MaxValue) {
+      throw new Exception("Number of routes can't fit into `Int`. Use `numRoutes` instead")
+    } else {
+      numRoutes.toInt
+    }
   }
 }
 

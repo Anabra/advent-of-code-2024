@@ -87,10 +87,7 @@ object Day19 {
     }
 
     solutions.map { case (in, solutionOpt) =>
-      println(in)
-      val numSolutions = solutionOpt.fold(0L) { s => s.numRoutes }
-      println(numSolutions)
-      numSolutions
+      solutionOpt.fold(0L) { s => s.numRoutes }
     }.sum
   }
 }
