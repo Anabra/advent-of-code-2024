@@ -56,25 +56,64 @@ object Day20 {
     }
   }
 
+  def calcWallsToDelete(track: RaceTrack): Set[Coords] =
+    Coords
+      .rangeInclusive(Coords(1, 1), Coords(track.size - 2, track.head.size - 2))
+      .filter(pos => track.at(pos).contains(Wall))
+      .toSet
+
+  def deleteWall(track: RaceTrack, wallPos: Coords): RaceTrack = track.updated(wallPos, Empty)
+
   def prettyTrack(track: RaceTrack): String = {
     track.map(_.map(_.pretty).mkString).mkString("\n")
   }
 
+  case class Cheat(
+    deletedWallPos: Coords,
+    totalTime: Long,
+  )
+
+  def findCheats(originalTrack: RaceTrack, calcBestRouteCost: RaceTrack => Long): Set[Cheat] = {
+    calcWallsToDelete(originalTrack).map { wallPos =>
+      val newTrack = deleteWall(originalTrack, wallPos)
+      val cost = calcBestRouteCost(newTrack)
+      Cheat(wallPos, cost)
+    }
+  }
+
   def task1(): Int = {
-    val track = readInput("day20_small.txt")
-    val start = findStart(track)
+    val originalTrack = readInput("day20.txt")
+    val start = findStart(originalTrack)
 
-    println(prettyTrack(track))
+    println(prettyTrack(originalTrack))
     println(start)
+    println()
 
-    val shortestPathOpt = Dijkstra.exploreSingleOptimalRoute(
-      graph = track,
-      start = start,
-      isEnd = (pos: Coords) => track.at(pos).contains(End),
-      nextMoves = calcNextMoves
-    )
-    println(s"cost: ${shortestPathOpt.get.cost}")
-    42
+    def calcBestRouteCost(track: RaceTrack): Long =
+      Dijkstra.exploreSingleOptimalRoute(
+        graph = track,
+        start = start,
+        isEnd = (pos: Coords) => originalTrack.at(pos).contains(End),
+        nextMoves = calcNextMoves
+      ).get.cost
+
+    val originalCost = calcBestRouteCost(originalTrack)
+    val cheats = findCheats(originalTrack, calcBestRouteCost)
+    println(s"cost: ${originalCost}")
+
+    val cheatsByTimeSaved = cheats
+      .toVector
+      .map(cheat => (originalCost - cheat.totalTime) -> cheat)
+      .groupBy(_._1)
+      .view
+      .mapValues(_.map(_._2))
+      .toMap
+    val numCheatsBySavings = cheatsByTimeSaved
+      .toVector.map { case (saving, cheats) => saving -> cheats.size }
+      .sortBy(_._1)
+    println(numCheatsBySavings)
+
+    numCheatsBySavings.collect { case (saving, numCheats) if saving >= 100 => numCheats }.sum
   }
 
   def task2(): Int = {
