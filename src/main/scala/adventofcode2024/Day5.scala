@@ -1,5 +1,7 @@
 package adventofcode2024
 
+import adventofcode2024.common.graphs.toposort
+
 import scala.annotation.tailrec
 import scala.collection.immutable.SortedSet
 
@@ -48,46 +50,8 @@ object Day5 {
     unorderedPages.map(p => p -> orderedPages.indexOf(p)).sortBy(_._2).map(_._1)
   }
 
-  def mkGraph(edges: Vector[(Int, Int)]): Map[Int, Vector[Int]] = {
-    edges.groupBy(_._1).view.mapValues(_.map(_._2)).toMap
-  }
-
-  // this is a custom BFS-based, tailrec version
-  // TODO: optimize data structures
-  // TODO: maybe we could use Kahn's algorithm
-  def toposort(graph: Map[Int, Vector[Int]]): Vector[Int] = {
-    val toVisit = collection.mutable.Queue.empty[Int]
-
-    val reverseGraph = mkGraph(
-      graph.toVector.flatMap { case (parent, children) =>
-        children.map(child => child -> parent)
-      }
-    )
-
-    val roots: Set[Int] = {
-      val allNodes = graph.keySet
-      val allChildren = graph.values.flatten.toSet
-      allNodes -- allChildren
-    }
-
-    toVisit.enqueueAll(roots)
-
-    @tailrec
-    def toposortHelper(sorted: Vector[Int]): Vector[Int] =
-      if (toVisit.isEmpty) {
-        sorted
-      } else {
-        val next = toVisit.dequeue()
-        lazy val parents = reverseGraph.getOrElse(next, Vector.empty)
-        if (sorted.contains(next) || parents.exists(!sorted.contains(_))) {
-          toposortHelper(sorted)
-        } else {
-          toVisit.enqueueAll(graph.getOrElse(next, Vector.empty))
-          toposortHelper(sorted :+ next)
-        }
-      }
-
-    toposortHelper(Vector())
+  def mkGraph(edges: Vector[(Int, Int)]): Map[Int, Set[Int]] = {
+    edges.groupBy(_._1).view.mapValues(_.map(_._2).toSet).toMap
   }
 
   def toposortTest(): Unit = {

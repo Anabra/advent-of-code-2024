@@ -4,6 +4,7 @@ import scala.annotation.tailrec
 
 package object graphs {
 
+  // TODO: support for multi-edges?
   def reverseGraph[Node](graph: Map[Node, Set[Node]]): Map[Node, Set[Node]] = {
     val edges = graph.toSet.flatMap { case (parent, children) =>
       children.map(child => child -> parent)
@@ -19,6 +20,7 @@ package object graphs {
   // this is a custom BFS-based, tailrec version
   // TODO: optimize data structures
   // TODO: maybe we could use Kahn's algorithm
+  // TODO: support for multi-edges?
   def toposort[Node](graph: Map[Node, Set[Node]]): Vector[Node] = {
     val toVisit = collection.mutable.Queue.empty[Node]
 
