@@ -31,6 +31,13 @@ package object common {
         y <- from.y until to.y
       } yield Coords(x, y)
     }.toVector
+
+    val directions = Set(
+      Coords(0,  1),
+      Coords(1,  1),
+      Coords(0, -1),
+      Coords(-1, 0),
+    )
   }
 
   def iterateWhile[T](init: T)(f: T => Option[T]): Vector[T] = {
@@ -57,5 +64,9 @@ package object common {
         None
       }
     }
+
+    def neighboursOf(coords: Coords): Set[Coords] = Coords.directions
+      .map(dir => coords + dir)
+      .filter(dest => dest.isWithinBounds(vv.size, vv.head.size))
   }
 }
