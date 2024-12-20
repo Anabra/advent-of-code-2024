@@ -1,11 +1,10 @@
-package adventofcode2024.common
+package adventofcode2024.common.graphs
 
-import adventofcode2024.common.Dijkstra.Move
+import adventofcode2024.common.graphs.Dijkstra.Move
 
 import scala.annotation.tailrec
 import scala.collection.mutable
 
-// TODO: geeralize the solution for finding all paths
 object Dijkstra {
   type Cost = Long
 
@@ -176,8 +175,8 @@ class RouteTracerIterator[Node](
     // We need to reverse the graph so that we can index into it with `end`
     // `visits` is basically the "reverse graph" of the original graph, so we are restoring the original graph here.
     val revGraph = visits.view.mapValues(_.map(_.from)).toMap
-    val originalGraph = Utils.reverseGraph(revGraph)
-    val toposortedNodes = Utils.toposort(originalGraph)
+    val originalGraph = reverseGraph(revGraph)
+    val toposortedNodes = toposort(originalGraph)
 
     val numRoutesTo = toposortedNodes.foldLeft(Map.empty[Node, Long]) { case (numRoutesFromStartTo, curNode) =>
       val prevNodes = revGraph.getOrElse(curNode, Set.empty)
@@ -199,53 +198,4 @@ class RouteTracerIterator[Node](
       numRoutes.toInt
     }
   }
-}
-
-object Utils {
-  def reverseGraph[Node](graph: Map[Node, Set[Node]]): Map[Node, Set[Node]] = {
-    val edges = graph.toSet.flatMap { case (parent, children) =>
-      children.map(child => child -> parent)
-    }
-
-    edges
-      .groupBy(_._1)
-      .view
-      .mapValues(_.map(_._2))
-      .toMap
-  }
-
-  // this is a custom BFS-based, tailrec version
-  // TODO: optimize data structures
-  // TODO: maybe we could use Kahn's algorithm
-  def toposort[Node](graph: Map[Node, Set[Node]]): Vector[Node] = {
-    val toVisit = collection.mutable.Queue.empty[Node]
-
-    val revGraph = reverseGraph(graph)
-
-    val roots: Set[Node] = {
-      val allNodes = graph.keySet
-      val allChildren = graph.values.flatten.toSet
-      allNodes -- allChildren
-    }
-
-    toVisit.enqueueAll(roots)
-
-    @tailrec
-    def toposortHelper(sorted: Vector[Node]): Vector[Node] =
-      if (toVisit.isEmpty) {
-        sorted
-      } else {
-        val next = toVisit.dequeue()
-        lazy val parents = revGraph.getOrElse(next, Vector.empty)
-        if (sorted.contains(next) || parents.exists(!sorted.contains(_))) {
-          toposortHelper(sorted)
-        } else {
-          toVisit.enqueueAll(graph.getOrElse(next, Vector.empty))
-          toposortHelper(sorted :+ next)
-        }
-      }
-
-    toposortHelper(Vector.empty)
-  }
-
 }

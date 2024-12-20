@@ -1,14 +1,15 @@
 package adventofcode2024
 
 import adventofcode2024.common.*
-import adventofcode2024.common.Dijkstra.Move
+import adventofcode2024.common.graphs.Dijkstra
+import adventofcode2024.common.graphs.Dijkstra.Move
 
 import scala.annotation.{nowarn, tailrec}
 import scala.collection.mutable
 
 object Day19 {
   def main(args: Array[String]): Unit = {
-//    println(task1())
+    println(task1())
     println(task2())
   }
 
