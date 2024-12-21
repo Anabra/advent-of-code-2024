@@ -40,6 +40,9 @@ package object common {
       Coords(0, -1),
       Coords(-1, 0),
     )
+
+    def manhattanDist(lhs: Coords, rhs: Coords): Long =
+      math.abs(lhs.x - rhs.x) + math.abs(lhs.y - rhs.y)
   }
 
   def iterateWhile[T](init: T)(f: T => Option[T]): Vector[T] = {

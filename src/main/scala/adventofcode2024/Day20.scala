@@ -8,7 +8,7 @@ import scala.annotation.{nowarn, tailrec}
 
 object Day20 {
   def main(args: Array[String]): Unit = {
-    println(task1())
+//    println(task1())
     println(task2())
   }
 
@@ -81,6 +81,48 @@ object Day20 {
     }
   }
 
+  def calcOgPathDistances(originalTrack: RaceTrack): Map[Coords, Int] = {
+    val start = findStart(originalTrack)
+
+    val originalPath = Dijkstra.exploreSingleOptimalRoute(
+      graph = originalTrack,
+      start = start,
+      isEnd = (pos: Coords) => originalTrack.at(pos).contains(End),
+      nextMoves = calcNextMoves
+    ).get.traceBackSingleOptimalPath.get
+
+    (start +: originalPath).zipWithIndex.toMap
+  }
+
+  case class ProCheat(
+    from: Coords,
+    to: Coords,
+    saving: Long,
+  )
+
+  def calcPossibleCheatsFrom(track: RaceTrack, ogPathDistances: Map[Coords, Int], from: Coords): Set[ProCheat] = {
+    val maxDistance = 20
+    val possibleCheatDestinations = Coords
+      .rangeInclusive(from - Coords(maxDistance, maxDistance), from + Coords(maxDistance, maxDistance))
+      .filter(pos => pos.isWithinBounds(track.size, track.head.size))
+      .filter(pos => Coords.manhattanDist(from, pos) <= maxDistance)
+      .filter(pos => track.at(pos).exists(_ != Wall))
+
+    possibleCheatDestinations.map { cheatDest =>
+      val cheatDistance = Coords.manhattanDist(from, cheatDest)
+      val saving = ogPathDistances(cheatDest) - (ogPathDistances(from) + cheatDistance) // TODO: safe?
+      ProCheat(from, cheatDest, saving)
+    }.filter(_.saving > 0).toSet
+  }
+
+  def calcAllPossibleCheats(track: RaceTrack): Set[ProCheat] = {
+    val ogPathsDistances = calcOgPathDistances(track)
+
+    ogPathsDistances.keySet.flatMap { pos =>
+      calcPossibleCheatsFrom(track, ogPathsDistances, pos)
+    }
+  }
+
   def task1(): Int = {
     val originalTrack = readInput("day20.txt")
     val start = findStart(originalTrack)
@@ -117,7 +159,32 @@ object Day20 {
   }
 
   def task2(): Int = {
-    val track = readInput("day20_small.txt")
-    42
+    val originalTrack = readInput("day20.txt")
+    val start = findStart(originalTrack)
+
+    println(prettyTrack(originalTrack))
+    println(start)
+    println()
+
+    val numCheatsBySavings = calcAllPossibleCheats(originalTrack)
+      .toVector
+      .groupBy(_.saving)
+      .view
+      .mapValues(_.size)
+      .toMap
+
+    val numCheatsBySavingsOrdered = numCheatsBySavings
+      .toVector
+      .filter { case (saving, _) => saving >= 50 }
+      .sortBy { case (saving, _) => saving }
+
+//    assert(numCheatsBySavingsOrdered == Vector((50,32), (52,31), (54,29), (56,39), (58,25), (60,23), (62,20), (64,19), (66,12), (68,14), (70,12), (72,22), (74,4), (76,3)))
+    println(numCheatsBySavingsOrdered)
+
+    numCheatsBySavingsOrdered
+      .collect { case (saving, numCheats) if saving >= 100 => numCheats }
+      .sum
   }
 }
+
+// 2411064 HI
