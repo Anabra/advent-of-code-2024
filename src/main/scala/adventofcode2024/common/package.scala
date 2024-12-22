@@ -14,6 +14,7 @@ package object common {
     def -(other: Coords): Coords = this + (other * -1)
     def inverse: Coords = this * (-1)
     def isWithinBounds(dimX: Int, dimY: Int): Boolean = x >= 0 && x < dimX && y >= 0 && y < dimY
+    def isWithinBounds(matrix: Vector[Vector[_]]): Boolean = isWithinBounds(matrix.size, matrix.head.size)
     def isWithinBoundingBox(topLeft: Coords, bottomRight: Coords): Boolean = {
       topLeft.x <= x && x <= bottomRight.x && topLeft.y <= y && y <= bottomRight.y
     }
@@ -69,6 +70,8 @@ package object common {
         None
       }
     }
+
+    def atUnsafe(coords: Coords): T = vv.at(coords).get
 
     def neighboursOf(coords: Coords): Set[Coords] = Coords.directions
       .map(dir => coords + dir)
