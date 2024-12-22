@@ -1,6 +1,7 @@
 package adventofcode2024
 
-import adventofcode2024.Day21.NumberpadKey.Num
+import adventofcode2024.Day21.NumberpadKey
+import adventofcode2024.Day21.NumberpadKey.{Activate, Num}
 import adventofcode2024.common.*
 import adventofcode2024.common.graphs.*
 import adventofcode2024.common.graphs.Dijkstra.*
@@ -11,8 +12,9 @@ import scala.util.{Left, Right}
 
 object Day21 {
   def main(args: Array[String]): Unit = {
+    runTests()
 //    println(task1())
-    println(task2())
+//    println(task2())
   }
 
   enum NumberpadKey {
@@ -144,6 +146,21 @@ object Day21 {
     numPressesNeeded * multiplier
   }
 
+  def requiredArrowKeysForNumberpad(startKey: NumberpadKey, endKey: NumberpadKey): Vector[ArrowpadKey] = {
+    val startPos = numberpad.findElem(_ == startKey).get
+    val endPos = numberpad.findElem(_ == endKey).get
+    val diff = endPos - startPos
+
+    val verticalDir = if (diff.x < 0) ArrowpadKey.Up else ArrowpadKey.Down
+    val horizontalDir = if (diff.y < 0) ArrowpadKey.Left else ArrowpadKey.Right
+
+    (verticalDir, horizontalDir) match {
+      case (ArrowpadKey.Up, _) => Vector.fill(diff.x.abs)(ArrowpadKey.Up) ++ Vector.fill(diff.y.abs)(horizontalDir)
+      case (_, ArrowpadKey.Right) => Vector.fill(diff.y.abs)(ArrowpadKey.Right) ++ Vector.fill(diff.x.abs)(verticalDir)
+      case _ => Vector.fill(diff.x.abs)(verticalDir) ++ Vector.fill(diff.y.abs)(horizontalDir)
+    }
+  }
+
   def task1(): Long = {
     val codes = readInput("day21.txt")
     codes.map(code => calcComplexity(2, code)).sum
@@ -152,5 +169,30 @@ object Day21 {
   def task2(): Long = {
     val codes = readInput("day21_test.txt")
     codes.map(code => calcComplexity(25, code)).sum
+  }
+
+  def testArrowKeyGenFromNumpad(): Unit = {
+    import ArrowpadKey as AK
+
+    assert(requiredArrowKeysForNumberpad(NumberpadKey.Activate, Activate) == Vector())
+
+    assert(requiredArrowKeysForNumberpad(NumberpadKey.Activate, NumberpadKey.Num(7)) == Vector(AK.Up, AK.Up, AK.Up, AK.Left, AK.Left))
+    assert(requiredArrowKeysForNumberpad(NumberpadKey.Activate, NumberpadKey.Num(9)) == Vector(AK.Up, AK.Up, AK.Up))
+    assert(requiredArrowKeysForNumberpad(NumberpadKey.Activate, NumberpadKey.Num(0)) == Vector(AK.Left))
+
+    assert(requiredArrowKeysForNumberpad(NumberpadKey.Num(7), NumberpadKey.Activate) == Vector(AK.Right, AK.Right, AK.Down, AK.Down, AK.Down))
+    assert(requiredArrowKeysForNumberpad(NumberpadKey.Num(7), NumberpadKey.Num(9)) == Vector(AK.Right, AK.Right))
+    assert(requiredArrowKeysForNumberpad(NumberpadKey.Num(7), NumberpadKey.Num(1)) == Vector(AK.Down, AK.Down))
+
+    assert(requiredArrowKeysForNumberpad(NumberpadKey.Num(5), NumberpadKey.Num(9)) == Vector(AK.Up, AK.Right))
+    assert(requiredArrowKeysForNumberpad(NumberpadKey.Num(5), NumberpadKey.Num(7)) == Vector(AK.Up, AK.Left))
+    assert(requiredArrowKeysForNumberpad(NumberpadKey.Num(5), NumberpadKey.Num(1)) == Vector(AK.Down, AK.Left))
+    assert(requiredArrowKeysForNumberpad(NumberpadKey.Num(5), NumberpadKey.Num(3)) == Vector(AK.Right, AK.Down))
+  }
+
+  def runTests(): Unit = {
+    testArrowKeyGenFromNumpad()
+
+    println("TESTS PASSED")
   }
 }
