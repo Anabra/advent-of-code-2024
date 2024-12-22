@@ -11,7 +11,7 @@ import scala.util.{Left, Right}
 
 object Day21 {
   def main(args: Array[String]): Unit = {
-    println(task1())
+//    println(task1())
     println(task2())
   }
 
@@ -105,7 +105,7 @@ object Day21 {
 
     (newStatesFromPressingArrowsOnDirectPad ++ newStateFromPressingActivate)
       .filter(st => code.startsWith(st.numberpadButtonsPressed))
-      .map { newState =>Move(from = prevMove.to, to = newState, cost = prevMove.cost + 1) }
+      .map { newState => Move(from = prevMove.to, to = newState, cost = prevMove.cost + 1) }
   }
 
   def readInput(path: String): Codes = {
@@ -138,19 +138,19 @@ object Day21 {
     exploration.traceBackSingleOptimalPath.get
   }
 
-  def calcComplexity(numRemoteArrowPads: Int, code: Vector[NumberpadKey]): Int = {
+  def calcComplexity(numRemoteArrowPads: Int, code: Vector[NumberpadKey]): Long = {
     val multiplier = code.dropRight(1).map { case Num(n) => n }.foldLeft(0) { case (acc, cur) => acc * 10 + cur }
     val numPressesNeeded = calcArrowPressesForCode(numRemoteArrowPads, code).size
     numPressesNeeded * multiplier
   }
 
-  def task1(): Int = {
+  def task1(): Long = {
     val codes = readInput("day21.txt")
     codes.map(code => calcComplexity(2, code)).sum
   }
 
-  def task2(): Int = {
-    val fsIndex = readInput("day21.txt")
-    42
+  def task2(): Long = {
+    val codes = readInput("day21_test.txt")
+    codes.map(code => calcComplexity(25, code)).sum
   }
 }
