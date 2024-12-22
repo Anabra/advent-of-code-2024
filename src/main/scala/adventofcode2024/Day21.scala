@@ -93,7 +93,7 @@ object Day21 {
     }
   }
 
-  def calcNextMoves(_graph: Unit, prevMove: Move[State]): Set[Move[State]] = {
+  def calcNextMoves(code: Vector[NumberpadKey], prevMove: Move[State]): Set[Move[State]] = {
     val firstRemoteArrowpadPos +: otherRemoteArrowPadPoss = prevMove.to.arrowpadPositions
     val newStatesFromPressingArrowsOnDirectPad = {
       val adjacentKeyPositions = arrowpad.neighboursOf(firstRemoteArrowpadPos) - arrowpadEmptyPos
@@ -103,9 +103,9 @@ object Day21 {
     }
     val newStateFromPressingActivate = calcNextStateFromPressingActivate(prevMove.to).toSet
 
-    (newStatesFromPressingArrowsOnDirectPad ++ newStateFromPressingActivate).map { newState =>
-      Move(from = prevMove.to, to = newState, cost = prevMove.cost + 1)
-    }
+    (newStatesFromPressingArrowsOnDirectPad ++ newStateFromPressingActivate)
+      .filter(st => code.startsWith(st.numberpadButtonsPressed))
+      .map { newState =>Move(from = prevMove.to, to = newState, cost = prevMove.cost + 1) }
   }
 
   def readInput(path: String): Codes = {
@@ -128,8 +128,8 @@ object Day21 {
   )
 
   def calcArrowPressesForCode(numRemoteArrowPads: Int, code: Vector[NumberpadKey]): Vector[State] = {
-    val exploration = Dijkstra.exploreSingleOptimalRoute[Unit, State](
-      graph = (),
+    val exploration = Dijkstra.exploreSingleOptimalRoute[Vector[NumberpadKey], State](
+      graph = code,
       start = genStartState(numRemoteArrowPads),
       isEnd = (st: State) => st.numberpadButtonsPressed == code,
       nextMoves = calcNextMoves
