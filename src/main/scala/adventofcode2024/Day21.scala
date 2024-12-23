@@ -7,6 +7,7 @@ import adventofcode2024.common.graphs.*
 import adventofcode2024.common.graphs.Dijkstra.*
 
 import scala.annotation.{nowarn, tailrec}
+import scala.collection.immutable.Vector
 import scala.collection.mutable
 import scala.util.{Left, Right}
 
@@ -14,7 +15,7 @@ object Day21 {
   def main(args: Array[String]): Unit = {
     runTests()
 //    println(task1())
-//    println(task2())
+    println(task2())
   }
 
   enum NumberpadKey {
@@ -140,12 +141,17 @@ object Day21 {
     exploration.traceBackSingleOptimalPath.get
   }
 
-  def calcComplexity(numRemoteArrowPads: Int, code: Vector[NumberpadKey]): Long = {
+  def calcComplexity(
+    numRemoteArrowPads: Int,
+    code: Vector[NumberpadKey],
+    calcArrowPressesForCode: (Int, Vector[NumberpadKey]) => Long
+  ): Long = {
     val multiplier = code.dropRight(1).map { case Num(n) => n }.foldLeft(0) { case (acc, cur) => acc * 10 + cur }
-    val numPressesNeeded = calcArrowPressesForCode(numRemoteArrowPads, code).size
+    val numPressesNeeded = calcArrowPressesForCode(numRemoteArrowPads, code)
     numPressesNeeded * multiplier
   }
 
+  // to go there and to press it
   def requiredArrowKeysForNumberpad(startKey: NumberpadKey, endKey: NumberpadKey): Vector[ArrowpadKey] = {
     val startPos = numberpad.findElem(_ == startKey).get
     val endPos = numberpad.findElem(_ == endKey).get
@@ -154,45 +160,125 @@ object Day21 {
     val verticalDir = if (diff.x < 0) ArrowpadKey.Up else ArrowpadKey.Down
     val horizontalDir = if (diff.y < 0) ArrowpadKey.Left else ArrowpadKey.Right
 
-    (verticalDir, horizontalDir) match {
+    val keys = (verticalDir, horizontalDir) match {
       case (ArrowpadKey.Up, _) => Vector.fill(diff.x.abs)(ArrowpadKey.Up) ++ Vector.fill(diff.y.abs)(horizontalDir)
       case (_, ArrowpadKey.Right) => Vector.fill(diff.y.abs)(ArrowpadKey.Right) ++ Vector.fill(diff.x.abs)(verticalDir)
       case _ => Vector.fill(diff.x.abs)(verticalDir) ++ Vector.fill(diff.y.abs)(horizontalDir)
     }
+    keys :+ ArrowpadKey.Activate
+  }
+
+  def requiredArrowKeysForNumpadSeq(code: Vector[NumberpadKey]): Vector[ArrowpadKey] = {
+    val codeStartingFromActivate = NumberpadKey.Activate +: code
+    codeStartingFromActivate.zip(codeStartingFromActivate.drop(1)).flatMap { case (from, to) => requiredArrowKeysForNumberpad(from, to) }
+  }
+
+  // to go there and to press it
+  def requiredArrowKeysForArrowpad(startKey: ArrowpadKey, endKey: ArrowpadKey): Vector[ArrowpadKey] = {
+    val startPos = arrowpad.findElem(_ == startKey).get
+    val endPos = arrowpad.findElem(_ == endKey).get
+    val diff = endPos - startPos
+
+    val verticalDir = if (diff.x < 0) ArrowpadKey.Up else ArrowpadKey.Down
+    val horizontalDir = if (diff.y < 0) ArrowpadKey.Left else ArrowpadKey.Right
+
+    val keys = (verticalDir, horizontalDir) match {
+      case (ArrowpadKey.Down, _) => Vector.fill(diff.x.abs)(ArrowpadKey.Down) ++ Vector.fill(diff.y.abs)(horizontalDir)
+      case (_, ArrowpadKey.Right) => Vector.fill(diff.y.abs)(ArrowpadKey.Right) ++ Vector.fill(diff.x.abs)(verticalDir)
+      case _ => Vector.fill(diff.x.abs)(verticalDir) ++ Vector.fill(diff.y.abs)(horizontalDir)
+    }
+    keys :+ ArrowpadKey.Activate
+  }
+
+  def requiredArrowKeysForArrowpadSeq(arrowpadSeq: Vector[ArrowpadKey]): Vector[ArrowpadKey] = {
+    val arrowpadKeysStartingFromActivate = ArrowpadKey.Activate +: arrowpadSeq
+    arrowpadKeysStartingFromActivate.zip(arrowpadKeysStartingFromActivate.drop(1)).flatMap { case (from, to) => requiredArrowKeysForArrowpad(from, to) }
+  }
+
+  def calcMultilevelArrowpadKeys(numRemoteArrowpads: Int, code: Vector[NumberpadKey]): Vector[ArrowpadKey] = {
+    val fstLevel = requiredArrowKeysForNumpadSeq(code)
+    Vector.iterate(fstLevel, numRemoteArrowpads + 1)(requiredArrowKeysForArrowpadSeq).last
+  }
+
+  def calcNumFinalArrowPresses(numArrowpads: Int, code: Vector[NumberpadKey]): Long = {
+    calcMultilevelArrowpadKeys(numArrowpads, code).size
   }
 
   def task1(): Long = {
     val codes = readInput("day21.txt")
-    codes.map(code => calcComplexity(2, code)).sum
+    codes.map(code => calcComplexity(2, code, (n, c) => calcArrowPressesForCode(n,c).size)).sum
   }
 
   def task2(): Long = {
-    val codes = readInput("day21_test.txt")
-    codes.map(code => calcComplexity(25, code)).sum
+    val codes = readInput("day21.txt")
+    codes.map(code => calcComplexity(2, code, calcNumFinalArrowPresses)).sum
   }
 
   def testArrowKeyGenFromNumpad(): Unit = {
     import ArrowpadKey as AK
 
-    assert(requiredArrowKeysForNumberpad(NumberpadKey.Activate, Activate) == Vector())
+    assert(requiredArrowKeysForNumberpad(NumberpadKey.Activate, NumberpadKey.Activate) == Vector(AK.Activate))
 
-    assert(requiredArrowKeysForNumberpad(NumberpadKey.Activate, NumberpadKey.Num(7)) == Vector(AK.Up, AK.Up, AK.Up, AK.Left, AK.Left))
-    assert(requiredArrowKeysForNumberpad(NumberpadKey.Activate, NumberpadKey.Num(9)) == Vector(AK.Up, AK.Up, AK.Up))
-    assert(requiredArrowKeysForNumberpad(NumberpadKey.Activate, NumberpadKey.Num(0)) == Vector(AK.Left))
+    assert(requiredArrowKeysForNumberpad(NumberpadKey.Activate, NumberpadKey.Num(7)) == Vector(AK.Up, AK.Up, AK.Up, AK.Left, AK.Left, AK.Activate))
+    assert(requiredArrowKeysForNumberpad(NumberpadKey.Activate, NumberpadKey.Num(9)) == Vector(AK.Up, AK.Up, AK.Up, AK.Activate))
+    assert(requiredArrowKeysForNumberpad(NumberpadKey.Activate, NumberpadKey.Num(0)) == Vector(AK.Left, AK.Activate))
 
-    assert(requiredArrowKeysForNumberpad(NumberpadKey.Num(7), NumberpadKey.Activate) == Vector(AK.Right, AK.Right, AK.Down, AK.Down, AK.Down))
-    assert(requiredArrowKeysForNumberpad(NumberpadKey.Num(7), NumberpadKey.Num(9)) == Vector(AK.Right, AK.Right))
-    assert(requiredArrowKeysForNumberpad(NumberpadKey.Num(7), NumberpadKey.Num(1)) == Vector(AK.Down, AK.Down))
+    assert(requiredArrowKeysForNumberpad(NumberpadKey.Num(7), NumberpadKey.Activate) == Vector(AK.Right, AK.Right, AK.Down, AK.Down, AK.Down, AK.Activate))
+    assert(requiredArrowKeysForNumberpad(NumberpadKey.Num(7), NumberpadKey.Num(9)) == Vector(AK.Right, AK.Right, AK.Activate))
+    assert(requiredArrowKeysForNumberpad(NumberpadKey.Num(7), NumberpadKey.Num(1)) == Vector(AK.Down, AK.Down, AK.Activate))
 
-    assert(requiredArrowKeysForNumberpad(NumberpadKey.Num(5), NumberpadKey.Num(9)) == Vector(AK.Up, AK.Right))
-    assert(requiredArrowKeysForNumberpad(NumberpadKey.Num(5), NumberpadKey.Num(7)) == Vector(AK.Up, AK.Left))
-    assert(requiredArrowKeysForNumberpad(NumberpadKey.Num(5), NumberpadKey.Num(1)) == Vector(AK.Down, AK.Left))
-    assert(requiredArrowKeysForNumberpad(NumberpadKey.Num(5), NumberpadKey.Num(3)) == Vector(AK.Right, AK.Down))
+    assert(requiredArrowKeysForNumberpad(NumberpadKey.Num(5), NumberpadKey.Num(9)) == Vector(AK.Up, AK.Right, AK.Activate))
+    assert(requiredArrowKeysForNumberpad(NumberpadKey.Num(5), NumberpadKey.Num(7)) == Vector(AK.Up, AK.Left, AK.Activate))
+    assert(requiredArrowKeysForNumberpad(NumberpadKey.Num(5), NumberpadKey.Num(1)) == Vector(AK.Down, AK.Left, AK.Activate))
+    assert(requiredArrowKeysForNumberpad(NumberpadKey.Num(5), NumberpadKey.Num(3)) == Vector(AK.Right, AK.Down, AK.Activate))
+  }
+
+  def testArrowKeyGenFromArrowpad(): Unit = {
+    import ArrowpadKey as AK
+
+    assert(requiredArrowKeysForArrowpad(AK.Activate, AK.Activate) == Vector(AK.Activate))
+
+    assert(requiredArrowKeysForArrowpad(AK.Activate, AK.Up) == Vector(AK.Left, AK.Activate))
+    assert(requiredArrowKeysForArrowpad(AK.Activate, AK.Left) == Vector(AK.Down, AK.Left, AK.Left, AK.Activate))
+
+    assert(requiredArrowKeysForArrowpad(AK.Up, AK.Left) == Vector(AK.Down, AK.Left, AK.Activate))
+    assert(requiredArrowKeysForArrowpad(AK.Up, AK.Right) == Vector(AK.Down, AK.Right, AK.Activate))
+    assert(requiredArrowKeysForArrowpad(AK.Up, AK.Activate) == Vector(AK.Right, AK.Activate))
+
+    assert(requiredArrowKeysForArrowpad(AK.Left, AK.Up) == Vector(AK.Right, AK.Up, AK.Activate))
+  }
+
+  def testBothAlgos(): Unit = {
+    val inputs = Vector(
+      Vector(NumberpadKey.Num(0), NumberpadKey.Num(2), NumberpadKey.Num(9), NumberpadKey.Activate),
+      Vector(NumberpadKey.Num(9), NumberpadKey.Num(8), NumberpadKey.Num(0), NumberpadKey.Activate),
+      Vector(NumberpadKey.Num(1), NumberpadKey.Num(7), NumberpadKey.Num(9), NumberpadKey.Activate),
+      Vector(NumberpadKey.Num(4), NumberpadKey.Num(5), NumberpadKey.Num(6), NumberpadKey.Activate),
+      Vector(NumberpadKey.Num(3), NumberpadKey.Num(7), NumberpadKey.Num(9), NumberpadKey.Activate),
+    )
+
+    val numLevels = 2
+    inputs.foreach { code =>
+      val res = calcMultilevelArrowpadKeys(numLevels, code)
+      val expectedRes = if (numLevels > 0) calcArrowPressesForCode(numLevels, code) else Vector()
+      println(res.map(_.pretty).mkString)
+      println(s"actual: ${res.size}, expected: ${expectedRes.size}")
+      assert(res.size == expectedRes.size)
+    }
   }
 
   def runTests(): Unit = {
     testArrowKeyGenFromNumpad()
+    testArrowKeyGenFromArrowpad()
+    testBothAlgos()
 
     println("TESTS PASSED")
   }
 }
+
+//<AAv<<AA>>^A
+//
+
+
+//v<<A>>^AvA^Av<<A>>^AA v<A<A>>^A  AvAA^<A>Av<A>^AA<A>A v<A<A>>^AAAvA^<A>A
+//<v<A>>^AvA^A <vA  <AA>>^A A  vA<^A>AA vA^A<vA>^AA<A>A<v<A>A >^AAAvA<^A>A
