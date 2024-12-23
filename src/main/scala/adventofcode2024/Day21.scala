@@ -14,7 +14,7 @@ import scala.util.{Left, Right}
 object Day21 {
   def main(args: Array[String]): Unit = {
     runTests()
-//    println(task1())
+    println(task1())
     println(task2())
   }
 
@@ -160,10 +160,22 @@ object Day21 {
     val verticalDir = if (diff.x < 0) ArrowpadKey.Up else ArrowpadKey.Down
     val horizontalDir = if (diff.y < 0) ArrowpadKey.Left else ArrowpadKey.Right
 
+    val emptyWithinBoundingBox = numberpadEmptyPos.isWithinBoundingBox(endPos, startPos)
+
     val keys = (verticalDir, horizontalDir) match {
-      case (ArrowpadKey.Up, _) => Vector.fill(diff.x.abs)(ArrowpadKey.Up) ++ Vector.fill(diff.y.abs)(horizontalDir)
-      case (_, ArrowpadKey.Right) => Vector.fill(diff.y.abs)(ArrowpadKey.Right) ++ Vector.fill(diff.x.abs)(verticalDir)
-      case _ => Vector.fill(diff.x.abs)(verticalDir) ++ Vector.fill(diff.y.abs)(horizontalDir)
+      case (ArrowpadKey.Up, _) =>
+        if (emptyWithinBoundingBox) {
+          Vector.fill(diff.x.abs)(ArrowpadKey.Up) ++ Vector.fill(diff.y.abs)(horizontalDir)
+        } else {
+          Vector.fill(diff.y.abs)(horizontalDir) ++ Vector.fill(diff.x.abs)(ArrowpadKey.Up)
+        }
+      case (_, ArrowpadKey.Right) =>
+        if (emptyWithinBoundingBox) {
+          Vector.fill(diff.y.abs)(ArrowpadKey.Right) ++ Vector.fill(diff.x.abs)(verticalDir)
+        } else {
+          Vector.fill(diff.x.abs)(verticalDir) ++ Vector.fill(diff.y.abs)(ArrowpadKey.Right)
+        }
+      case _ => Vector.fill(diff.y.abs)(horizontalDir) ++ Vector.fill(diff.x.abs)(verticalDir)
     }
     keys :+ ArrowpadKey.Activate
   }
@@ -250,17 +262,27 @@ object Day21 {
 
   def testBothAlgos(): Unit = {
     val inputs = Vector(
+      Vector(NumberpadKey.Num(1), NumberpadKey.Activate),
+
       Vector(NumberpadKey.Num(0), NumberpadKey.Num(2), NumberpadKey.Num(9), NumberpadKey.Activate),
       Vector(NumberpadKey.Num(9), NumberpadKey.Num(8), NumberpadKey.Num(0), NumberpadKey.Activate),
       Vector(NumberpadKey.Num(1), NumberpadKey.Num(7), NumberpadKey.Num(9), NumberpadKey.Activate),
       Vector(NumberpadKey.Num(4), NumberpadKey.Num(5), NumberpadKey.Num(6), NumberpadKey.Activate),
       Vector(NumberpadKey.Num(3), NumberpadKey.Num(7), NumberpadKey.Num(9), NumberpadKey.Activate),
+
+      Vector(NumberpadKey.Num(1), NumberpadKey.Num(2), NumberpadKey.Num(9), NumberpadKey.Activate),
+      Vector(NumberpadKey.Num(9), NumberpadKey.Num(7), NumberpadKey.Num(4), NumberpadKey.Activate),
+      Vector(NumberpadKey.Num(8), NumberpadKey.Num(0), NumberpadKey.Num(5), NumberpadKey.Activate),
+      Vector(NumberpadKey.Num(6), NumberpadKey.Num(7), NumberpadKey.Num(1), NumberpadKey.Activate),
+      Vector(NumberpadKey.Num(3), NumberpadKey.Num(8), NumberpadKey.Num(6), NumberpadKey.Activate),
     )
 
     val numLevels = 2
     inputs.foreach { code =>
       val res = calcMultilevelArrowpadKeys(numLevels, code)
       val expectedRes = if (numLevels > 0) calcArrowPressesForCode(numLevels, code) else Vector()
+      println()
+      println(code)
       println(res.map(_.pretty).mkString)
       println(s"actual: ${res.size}, expected: ${expectedRes.size}")
       assert(res.size == expectedRes.size)
@@ -268,7 +290,7 @@ object Day21 {
   }
 
   def runTests(): Unit = {
-    testArrowKeyGenFromNumpad()
+//    testArrowKeyGenFromNumpad()
     testArrowKeyGenFromArrowpad()
     testBothAlgos()
 
