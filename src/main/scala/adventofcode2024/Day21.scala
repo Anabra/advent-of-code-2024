@@ -221,6 +221,32 @@ object Day21 {
     Vector.iterate(fstLevel, numRemoteArrowpads + 1)(requiredArrowKeysForArrowpadSeq).last
   }
 
+  def calcNumFinalArrowPressesFAST(numArrowpads: Int, code: Vector[NumberpadKey]): Long = {
+    val initialArrowKeys = calcMultilevelArrowpadKeys(0, code)
+    val todo = mutable.Stack.empty[(ArrowpadKey, Int)]
+    todo.pushAll(initialArrowKeys.reverse.map(_ -> 0))
+
+    def loop(numPressesNeeded: Long): Long = {
+      if (todo.isEmpty) {
+        numPressesNeeded
+      } else {
+        val (curArrow,  curLvl) = todo.pop()
+        if (curLvl == numArrowpads) {
+          loop(numPressesNeeded + 1)
+        } else {
+          val  = todo.headOption
+          if (curLvl == nextLvl) {
+            val newArrowsWithLevel = requiredArrowKeysForArrowpad(curArrow, nextArrow).map(_ -> (curLvl + 1))
+            todo.pushAll(newArrowsWithLevel.reverse)
+          }
+          loop(numPressesNeeded)
+        }
+      }
+    }
+
+    loop(0)
+  }
+
   def calcNumFinalArrowPresses(numArrowpads: Int, code: Vector[NumberpadKey]): Long = {
     calcMultilevelArrowpadKeys(numArrowpads, code).size
   }
@@ -232,7 +258,7 @@ object Day21 {
 
   def task2(): Long = {
     val codes = readInput("day21.txt")
-    codes.map(code => calcComplexity(2, code, calcNumFinalArrowPresses)).sum
+    codes.map(code => calcComplexity(17, code, calcNumFinalArrowPressesFAST)).sum
   }
 
   def testArrowKeyGenFromNumpad(): Unit = {
@@ -289,12 +315,16 @@ object Day21 {
     val numLevels = 2
     inputs.foreach { code =>
       val res = calcMultilevelArrowpadKeys(numLevels, code)
+      val fastResNum = calcNumFinalArrowPressesFAST(numLevels, code)
       val expectedRes = if (numLevels > 0) calcArrowPressesForCode(numLevels, code) else Vector()
       println()
       println(code)
       println(res.map(_.pretty).mkString)
       println(s"actual: ${res.size}, expected: ${expectedRes.size}")
       assert(res.size == expectedRes.size)
+
+      println(s"actual FAST: ${fastResNum}, expected: ${expectedRes.size}")
+      assert(fastResNum == expectedRes.size)
     }
   }
 
