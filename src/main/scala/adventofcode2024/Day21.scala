@@ -221,39 +221,52 @@ object Day21 {
     Vector.iterate(fstLevel, numRemoteArrowpads + 1)(requiredArrowKeysForArrowpadSeq).last
   }
 
-  def calcNumFinalArrowPressesFAST(numArrowpads: Int, code: Vector[NumberpadKey]): Long = {
-    val initialArrowKeys = calcMultilevelArrowpadKeys(0, code)
-    val todo = mutable.Stack.empty[(ArrowpadKey, Int)]
-    todo.pushAll(initialArrowKeys.reverse.map(_ -> 0))
-    todo.push(ArrowpadKey.Activate -> 0)
+  sealed trait Todo
+  case class Explore(from: ArrowpadKey, to: ArrowpadKey, level: Int) extends Todo
+  case class Memoize(explore: Explore, numButtonPressesWhenStarted: Long) extends Todo
 
-    def loop(numPressesNeeded: Long): Long = {
+  def genNewExplorations(curArrow: ArrowpadKey, nextArrow: ArrowpadKey, nextLevel: Int): Vector[Todo] = {
+    val newArrowpadKeys = ArrowpadKey.Activate +: requiredArrowKeysForArrowpad(curArrow, nextArrow)
+    newArrowpadKeys.zip(newArrowpadKeys.drop(1)).map { case (from, to) => Explore(from, to, nextLevel) }
+  }
+
+  def calcNumFinalArrowPressesFAST(numArrowpads: Int, code: Vector[NumberpadKey]): Long = {
+    val todo = mutable.Stack.empty[Todo]
+    val initialTodos = {
+      val arrows = ArrowpadKey.Activate +: calcMultilevelArrowpadKeys(0, code)
+      arrows.zip(arrows.drop(1)).map { case (from, to) => Explore(from, to, 0) }
+    }
+    todo.pushAll(initialTodos.reverse)
+
+    @tailrec
+    def loop(numPressesNeededSoFar: Long, memoized: Map[Explore, Long]): Long = {
       if (todo.isEmpty) {
-        numPressesNeeded
+        numPressesNeededSoFar
       } else {
-        val (curArrow, curLvl) = todo.pop()
-        if (curLvl == numArrowpads) {
-          val newPresses = todo.popWhile(_._2 == numArrowpads)
-          loop(numPressesNeeded + newPresses.size)
-        } else {
-          todo.headOption match {
-            case Some(next@(nextArrow, nextLvl)) =>
-              if (curLvl == nextLvl) {
-                val newArrowsWithLevel = requiredArrowKeysForArrowpad(curArrow, nextArrow).map(_ -> (curLvl + 1))
-                todo.pushAll(newArrowsWithLevel.reverse)
-                todo.push(ArrowpadKey.Activate -> (curLvl + 1))
-                loop(numPressesNeeded)
-              } else {
-                loop(numPressesNeeded)
+        todo.pop() match {
+          case curExploration@Explore(from, to, lvl) =>
+            if (lvl == numArrowpads) {
+              loop(numPressesNeededSoFar + 1, memoized)
+            } else {
+              memoized.get(curExploration) match {
+                case Some(res) =>
+                  loop(numPressesNeededSoFar + res, memoized)
+                case None =>
+                  val newExplorations = genNewExplorations(from, to, lvl + 1)
+                  val memoization = Memoize(curExploration, numPressesNeededSoFar)
+                  todo.push(memoization)
+                  todo.pushAll(newExplorations.reverse)
+                  loop(numPressesNeededSoFar, memoized)
               }
-            case None =>
-              numPressesNeeded
-          }
+            }
+          case Memoize(exploration, numButtonPressesWhenStarted) =>
+            val newMemoized = memoized.updated(exploration, numPressesNeededSoFar - numButtonPressesWhenStarted)
+            loop(numPressesNeededSoFar, newMemoized)
         }
       }
     }
 
-    loop(0)
+    loop(0, Map.empty)
   }
 
   def calcNumFinalArrowPresses(numArrowpads: Int, code: Vector[NumberpadKey]): Long = {
@@ -267,7 +280,7 @@ object Day21 {
 
   def task2(): Long = {
     val codes = readInput("day21.txt")
-    codes.map(code => calcComplexity(2, code, calcNumFinalArrowPressesFAST)).sum
+    codes.map(code => calcComplexity(25, code, calcNumFinalArrowPressesFAST)).sum
   }
 
   def testArrowKeyGenFromNumpad(): Unit = {
