@@ -225,21 +225,30 @@ object Day21 {
     val initialArrowKeys = calcMultilevelArrowpadKeys(0, code)
     val todo = mutable.Stack.empty[(ArrowpadKey, Int)]
     todo.pushAll(initialArrowKeys.reverse.map(_ -> 0))
+    todo.push(ArrowpadKey.Activate -> 0)
 
     def loop(numPressesNeeded: Long): Long = {
       if (todo.isEmpty) {
         numPressesNeeded
       } else {
-        val (curArrow,  curLvl) = todo.pop()
+        val (curArrow, curLvl) = todo.pop()
         if (curLvl == numArrowpads) {
-          loop(numPressesNeeded + 1)
+          val newPresses = todo.popWhile(_._2 == numArrowpads)
+          loop(numPressesNeeded + newPresses.size)
         } else {
-          val  = todo.headOption
-          if (curLvl == nextLvl) {
-            val newArrowsWithLevel = requiredArrowKeysForArrowpad(curArrow, nextArrow).map(_ -> (curLvl + 1))
-            todo.pushAll(newArrowsWithLevel.reverse)
+          todo.headOption match {
+            case Some(next@(nextArrow, nextLvl)) =>
+              if (curLvl == nextLvl) {
+                val newArrowsWithLevel = requiredArrowKeysForArrowpad(curArrow, nextArrow).map(_ -> (curLvl + 1))
+                todo.pushAll(newArrowsWithLevel.reverse)
+                todo.push(ArrowpadKey.Activate -> (curLvl + 1))
+                loop(numPressesNeeded)
+              } else {
+                loop(numPressesNeeded)
+              }
+            case None =>
+              numPressesNeeded
           }
-          loop(numPressesNeeded)
         }
       }
     }
@@ -258,7 +267,7 @@ object Day21 {
 
   def task2(): Long = {
     val codes = readInput("day21.txt")
-    codes.map(code => calcComplexity(17, code, calcNumFinalArrowPressesFAST)).sum
+    codes.map(code => calcComplexity(2, code, calcNumFinalArrowPressesFAST)).sum
   }
 
   def testArrowKeyGenFromNumpad(): Unit = {
@@ -297,6 +306,7 @@ object Day21 {
 
   def testBothAlgos(): Unit = {
     val inputs = Vector(
+      Vector(NumberpadKey.Num(0), NumberpadKey.Activate),
       Vector(NumberpadKey.Num(1), NumberpadKey.Activate),
 
       Vector(NumberpadKey.Num(0), NumberpadKey.Num(2), NumberpadKey.Num(9), NumberpadKey.Activate),
