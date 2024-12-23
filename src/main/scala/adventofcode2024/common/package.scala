@@ -15,8 +15,8 @@ package object common {
     def inverse: Coords = this * (-1)
     def isWithinBounds(dimX: Int, dimY: Int): Boolean = x >= 0 && x < dimX && y >= 0 && y < dimY
     def isWithinBounds(matrix: Vector[Vector[_]]): Boolean = isWithinBounds(matrix.size, matrix.head.size)
-    def isWithinBoundingBox(topLeft: Coords, bottomRight: Coords): Boolean = {
-      topLeft.x <= x && x <= bottomRight.x && topLeft.y <= y && y <= bottomRight.y
+    def isWithinBoundingBox(lhs: Coords, rhs: Coords): Boolean = {
+      math.min(lhs.x, rhs.x) <= x && x <= math.max(lhs.x, rhs.x) && math.min(lhs.y, rhs.y) <= y && y <= math.max(lhs.y, rhs.y)
     }
   }
 

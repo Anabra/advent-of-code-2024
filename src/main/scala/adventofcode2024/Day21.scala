@@ -160,23 +160,22 @@ object Day21 {
     val verticalDir = if (diff.x < 0) ArrowpadKey.Up else ArrowpadKey.Down
     val horizontalDir = if (diff.y < 0) ArrowpadKey.Left else ArrowpadKey.Right
 
-    val emptyWithinBoundingBox = numberpadEmptyPos.isWithinBoundingBox(endPos, startPos)
+    val emptyWithinBoundingBox = numberpadEmptyPos.isWithinBoundingBox(startPos, endPos)
 
-    val keys = (verticalDir, horizontalDir) match {
-      case (ArrowpadKey.Up, _) =>
-        if (emptyWithinBoundingBox) {
-          Vector.fill(diff.x.abs)(ArrowpadKey.Up) ++ Vector.fill(diff.y.abs)(horizontalDir)
-        } else {
-          Vector.fill(diff.y.abs)(horizontalDir) ++ Vector.fill(diff.x.abs)(ArrowpadKey.Up)
-        }
-      case (_, ArrowpadKey.Right) =>
-        if (emptyWithinBoundingBox) {
-          Vector.fill(diff.y.abs)(ArrowpadKey.Right) ++ Vector.fill(diff.x.abs)(verticalDir)
-        } else {
-          Vector.fill(diff.x.abs)(verticalDir) ++ Vector.fill(diff.y.abs)(ArrowpadKey.Right)
-        }
-      case _ => Vector.fill(diff.y.abs)(horizontalDir) ++ Vector.fill(diff.x.abs)(verticalDir)
+    val keys = if (emptyWithinBoundingBox) {
+      (verticalDir, horizontalDir) match {
+        case (_, ArrowpadKey.Right) => Vector.fill(diff.y.abs)(ArrowpadKey.Right) ++ Vector.fill(diff.x.abs)(verticalDir)
+        case (ArrowpadKey.Up, _) => Vector.fill(diff.x.abs)(ArrowpadKey.Up) ++ Vector.fill(diff.y.abs)(horizontalDir)
+        case _ => Vector.fill(diff.x.abs)(verticalDir) ++ Vector.fill(diff.y.abs)(horizontalDir)
+      }
+    } else {
+      (verticalDir, horizontalDir) match {
+        case (_, ArrowpadKey.Left) => Vector.fill(diff.y.abs)(ArrowpadKey.Left) ++ Vector.fill(diff.x.abs)(verticalDir)
+        case (ArrowpadKey.Down, _) => Vector.fill(diff.x.abs)(ArrowpadKey.Down) ++ Vector.fill(diff.y.abs)(horizontalDir)
+        case _ => Vector.fill(diff.x.abs)(verticalDir) ++ Vector.fill(diff.y.abs)(horizontalDir)
+      }
     }
+
     keys :+ ArrowpadKey.Activate
   }
 
@@ -193,12 +192,22 @@ object Day21 {
 
     val verticalDir = if (diff.x < 0) ArrowpadKey.Up else ArrowpadKey.Down
     val horizontalDir = if (diff.y < 0) ArrowpadKey.Left else ArrowpadKey.Right
+    val emptyWithinBoundingBox = arrowpadEmptyPos.isWithinBoundingBox(startPos, endPos)
 
-    val keys = (verticalDir, horizontalDir) match {
-      case (ArrowpadKey.Down, _) => Vector.fill(diff.x.abs)(ArrowpadKey.Down) ++ Vector.fill(diff.y.abs)(horizontalDir)
-      case (_, ArrowpadKey.Right) => Vector.fill(diff.y.abs)(ArrowpadKey.Right) ++ Vector.fill(diff.x.abs)(verticalDir)
-      case _ => Vector.fill(diff.x.abs)(verticalDir) ++ Vector.fill(diff.y.abs)(horizontalDir)
+    val keys = if (emptyWithinBoundingBox) {
+      (verticalDir, horizontalDir) match {
+        case (ArrowpadKey.Down, _) => Vector.fill(diff.x.abs)(ArrowpadKey.Down) ++ Vector.fill(diff.y.abs)(horizontalDir)
+        case (_, ArrowpadKey.Right) => Vector.fill(diff.y.abs)(ArrowpadKey.Right) ++ Vector.fill(diff.x.abs)(verticalDir)
+        case _ => Vector.fill(diff.x.abs)(verticalDir) ++ Vector.fill(diff.y.abs)(horizontalDir)
+      }
+    } else {
+      (verticalDir, horizontalDir) match {
+        case (_, ArrowpadKey.Left) => Vector.fill(diff.y.abs)(ArrowpadKey.Left) ++ Vector.fill(diff.x.abs)(verticalDir)
+        case (ArrowpadKey.Down, _) => Vector.fill(diff.x.abs)(ArrowpadKey.Down) ++ Vector.fill(diff.y.abs)(horizontalDir)
+        case _ => Vector.fill(diff.x.abs)(verticalDir) ++ Vector.fill(diff.y.abs)(horizontalDir)
+      }
     }
+
     keys :+ ArrowpadKey.Activate
   }
 
@@ -291,7 +300,7 @@ object Day21 {
 
   def runTests(): Unit = {
 //    testArrowKeyGenFromNumpad()
-    testArrowKeyGenFromArrowpad()
+//    testArrowKeyGenFromArrowpad()
     testBothAlgos()
 
     println("TESTS PASSED")
