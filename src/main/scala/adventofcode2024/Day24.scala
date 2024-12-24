@@ -15,7 +15,11 @@ object Day24 {
   type VarName = String
   type Bit = Int
 
-  sealed trait Operation
+  sealed trait Operation {
+    val lhs: VarName
+    val rhs: VarName
+    val out: VarName
+  }
   case class And(lhs: VarName, rhs: VarName, out: VarName) extends Operation
   case class Or(lhs: VarName, rhs: VarName, out: VarName) extends Operation
   case class Xor(lhs: VarName, rhs: VarName, out: VarName) extends Operation
@@ -52,16 +56,57 @@ object Day24 {
     Program(initialVars, gates)
   }
 
-  def task1(): Int = {
-    val program = readInput("day24_small.txt")
+  // map of invar -> outvars that depend on invar
+  def calcDependencies(operations: Vector[Operation]): Map[VarName, Set[VarName]] =
+    operations.foldLeft(Map.empty[VarName, Set[VarName]]) { case (deps, curOp) =>
+      deps
+        .updatedWith(curOp.lhs) {
+          case None => Some(Set(curOp.out))
+          case Some(outs) => Some(outs + curOp.out)
+        }
+        .updatedWith(curOp.rhs) {
+          case None => Some(Set(curOp.out))
+          case Some(outs) => Some(outs + curOp.out)
+        }
+    }
+
+  def reorderOperations(operations: Vector[Operation]): Vector[Operation] = {
+    val deps = calcDependencies(operations)
+    val varsInComputeOrder = toposort(deps)
+    operations.sortBy(op => varsInComputeOrder.indexOf(op.out))
+  }
+
+  def evaluate(program: Program): Map[VarName, Bit] = {
+    val reorderedOps = reorderOperations(program.gates)
+    reorderedOps.foldLeft(program.inputs) { case (vars, op) =>
+      val res = op match {
+        case And(lhs, rhs, _) => vars(lhs) & vars(rhs)
+        case Xor(lhs, rhs, _) => vars(lhs) ^ vars(rhs)
+        case Or(lhs, rhs, _)  => vars(lhs) | vars(rhs)
+      }
+      vars.updated(op.out, res)
+    }
+  }
+
+  def calcFinalAnswer(evalRes: Map[VarName, Bit]): Long = {
+    val bits = evalRes.toVector.filter(_._1.startsWith("z")).sorted.reverse.map(_._2)
+    bits.foldLeft(0L)((acc, cur) => acc * 2 + cur)
+  }
+
+  def task1(): Long = {
+    val program = readInput("day24.txt")
 
     program.inputs.toVector.sorted.foreach { case (varName, value) =>
       println(s"${varName}: ${value}")
     }
-    program.gates.foreach(println)
+    println()
 
+    val reorderedGates = reorderOperations(program.gates)
+    reorderedGates.foreach(println)
 
-    42
+    val endState = evaluate(program)
+
+    calcFinalAnswer(endState)
   }
 
   def task2(): Int = {
