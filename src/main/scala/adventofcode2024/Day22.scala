@@ -64,7 +64,9 @@ object Day22 {
     val pricesWithChangesByMerchant = secretNums.map(calcPricesWithChanges).map(_.pricesWithChanges)
     val allPossibleChangeSeqs = pricesWithChangesByMerchant.flatten.map(_._2).toSet
 
-    allPossibleChangeSeqs.toVector.zipWithIndex.map { (changeSeq, ix) =>
+    import scala.collection.parallel.CollectionConverters._
+
+    allPossibleChangeSeqs.toVector.zipWithIndex.par.map { (changeSeq, ix) =>
       if (ix % 1000 == 0) println(ix)
       val totalPrice = calcTotalPrice(pricesWithChangesByMerchant, changeSeq)
       changeSeq -> totalPrice
