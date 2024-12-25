@@ -5,6 +5,7 @@ import adventofcode2024.common.graphs.*
 
 import scala.annotation.{nowarn, tailrec}
 import scala.collection.mutable
+import scala.util.Random
 
 object Day24 {
   def main(args: Array[String]): Unit = {
@@ -125,19 +126,107 @@ object Day24 {
 
   val convertZsToDecimal: Map[VarName, Bit] => Long = calcFinalAnswer
 
-  def task2(): Int = {
-    val program = readInput("day24.txt")
-    val endState = evaluate(program)
+  def decimalTo45Bits(decimal: Long): Vector[Bit] =
+    decimal.toBinaryString.reverse.padTo(45, '0').toVector.map(_.asDigit)
 
-    val xs = convertXsToDecimal(program)
-    val ys = convertYsToDecimal(program)
+  def convertDecimalToBitVars(decimal: Long, varNamePrefix: String): Map[VarName, Bit] = decimalTo45Bits(decimal)
+    .zipWithIndex
+    .map { case (bitVal, ix) =>
+      val paddedIx = ix.toString.reverse.padTo(2, '0').reverse
+      val varName = varNamePrefix + paddedIx
+      varName -> bitVal
+    }
+    .toMap
+
+  def calcInputs(xs: Long, ys: Long): Map[VarName, Bit] = {
+    val newXsBitVars = convertDecimalToBitVars(xs, "x")
+    val newYsBitVars = convertDecimalToBitVars(ys, "y")
+    newXsBitVars ++ newYsBitVars
+  }
+
+  def overrideInputs(program: Program, xs: Long, ys: Long): Program = {
+    val newInputs = program.inputs ++ calcInputs(xs, ys)
+    program.copy(inputs = newInputs)
+  }
+
+  def generateNewInputs(numInputs: Int): Vector[(Long, Long)] = {
+    val rnd = new Random(42)
+    val upperBoundExclusive = math.pow(2,45).toLong
+
+    val maxValue = upperBoundExclusive - 1
+    val minValue = 0L
+
+    val totallyRandomInputs = (1 to numInputs).flatMap { _ =>
+      val xs = rnd.nextLong(upperBoundExclusive)
+      val ys = rnd.nextLong(upperBoundExclusive)
+      Vector(
+        xs -> ys,
+        ys -> xs,
+      )
+    }
+
+    val minMaxRandomInputs = (1 to 10).flatMap { _ =>
+      val other = rnd.nextLong(upperBoundExclusive)
+
+      Vector(
+        other -> minValue,
+        minValue -> other,
+        other -> maxValue,
+        maxValue -> other,
+      )
+    }
+
+    val symmetricRandomInputs = (1 to 10).map { _ =>
+      val other = rnd.nextLong(upperBoundExclusive)
+      other -> other
+    }
+
+    val intervalEndInputs = Vector(
+      minValue -> minValue,
+      maxValue -> maxValue,
+      minValue -> maxValue,
+      maxValue -> minValue,
+    )
+
+    (totallyRandomInputs ++ minMaxRandomInputs ++ symmetricRandomInputs ++ intervalEndInputs).toVector
+  }
+
+  def isValidProgram(program: Program, xs: Long, ys: Long): Boolean = {
+    val endState = evaluate(program)
     val zs = convertZsToDecimal(endState)
+    zs == xs + ys
+  }
+
+  def findFailingInput(gates: Vector[Operation]): Option[(Long, Long, Long)] = {
+    val inputs = generateNewInputs(100)
+
+    inputs.map { case (xs, ys) =>
+      val program = Program(inputs = calcInputs(xs, ys), gates = gates)
+      val endState = evaluate(program)
+      val zs = convertZsToDecimal(endState)
+      (xs, ys, zs)
+    }.find { case (xs, ys, actualZs) => actualZs != xs + ys }
+  }
+
+  def task2(): Int = {
+    val ogProgram = readInput("day24.txt")
     
-    println(s"xs: ${xs}")
-    println(s"ys: ${ys}")
-    println(s"actual zs: ${zs}")
-    println(s"expected zs: ${xs + ys}")
-   
-   42 
+//    val newProgram = overrideInputs(ogProgram, xs = 12420713017224L, ys = 18578244294226L)
+//    val endState = evaluate(newProgram)
+//    println(convertZsToDecimal(endState))
+//    println(12420713017224L + 18578244294226L)
+    
+    findFailingInput(ogProgram.gates).foreach { case (xs, ys, actualZs) =>
+      println(s"xs: ${xs}")
+      println(s"ys: ${ys}")
+      println(s"actual zs: ${actualZs}")
+      println(s"expected zs: ${xs + ys}")
+    }
+
+
+//    assert(decimalTo45Bits(xs) == program.inputs.toVector.filter((v,_) => v.startsWith("x")).sorted.map(_._2))
+//    assert(decimalTo45Bits(ys) == program.inputs.toVector.filter((v,_) => v.startsWith("y")).sorted.map(_._2))
+
+   42
   }
 }
