@@ -8,7 +8,7 @@ import scala.collection.mutable
 
 object Day24 {
   def main(args: Array[String]): Unit = {
-    println(task1())
+//    println(task1())
     println(task2())
   }
 
@@ -88,13 +88,16 @@ object Day24 {
     }
   }
 
+  def bitsToDecimal(bitsReverse: Vector[Bit]): Long =
+    bitsReverse.foldLeft(0L)((acc, cur) => acc * 2 + cur)
+
   def calcFinalAnswer(evalRes: Map[VarName, Bit]): Long = {
     val bits = evalRes.toVector.filter(_._1.startsWith("z")).sorted.reverse.map(_._2)
-    bits.foldLeft(0L)((acc, cur) => acc * 2 + cur)
+    bitsToDecimal(bits)
   }
 
   def task1(): Long = {
-    val program = readInput("day24.txt")
+    val program = readInput("day24_small.txt")
 
     program.inputs.toVector.sorted.foreach { case (varName, value) =>
       println(s"${varName}: ${value}")
@@ -109,8 +112,32 @@ object Day24 {
     calcFinalAnswer(endState)
   }
 
+  def convertVarsToDecimal(vars: Map[VarName, Bit], pred: VarName => Boolean): Long = {
+    val bits = vars.toVector.filter((v,_) => pred(v)).sorted.reverse.map(_._2)
+    bitsToDecimal(bits)
+  }
+
+  def convertXsToDecimal(program: Program): Long =
+    convertVarsToDecimal(program.inputs, _.startsWith("x"))
+
+  def convertYsToDecimal(program: Program): Long =
+    convertVarsToDecimal(program.inputs, _.startsWith("y"))
+
+  val convertZsToDecimal: Map[VarName, Bit] => Long = calcFinalAnswer
+
   def task2(): Int = {
-    val program = readInput("day24_small.txt")
-    42
+    val program = readInput("day24.txt")
+    val endState = evaluate(program)
+
+    val xs = convertXsToDecimal(program)
+    val ys = convertYsToDecimal(program)
+    val zs = convertZsToDecimal(endState)
+    
+    println(s"xs: ${xs}")
+    println(s"ys: ${ys}")
+    println(s"actual zs: ${zs}")
+    println(s"expected zs: ${xs + ys}")
+   
+   42 
   }
 }
