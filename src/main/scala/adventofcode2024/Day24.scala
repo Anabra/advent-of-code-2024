@@ -198,7 +198,7 @@ object Day24 {
   }
 
   def findFailingInput(gates: Vector[Operation]): Option[(Long, Long, Long)] = {
-    val inputs = generateNewInputs(100)
+    val inputs = generateNewInputs(10)
 
     inputs.map { case (xs, ys) =>
       val program = Program(inputs = calcInputs(xs, ys), gates = gates)
@@ -210,12 +210,12 @@ object Day24 {
 
   def task2(): Int = {
     val ogProgram = readInput("day24.txt")
-    
+
 //    val newProgram = overrideInputs(ogProgram, xs = 12420713017224L, ys = 18578244294226L)
 //    val endState = evaluate(newProgram)
 //    println(convertZsToDecimal(endState))
 //    println(12420713017224L + 18578244294226L)
-    
+
     findFailingInput(ogProgram.gates).foreach { case (xs, ys, actualZs) =>
       println(s"xs: ${xs}")
       println(s"ys: ${ys}")
