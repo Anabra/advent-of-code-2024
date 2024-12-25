@@ -197,7 +197,7 @@ object Day24 {
     zs == xs + ys
   }
 
-  def findFailingInput(gates: Vector[Operation]): Option[(Long, Long, Long)] = {
+  def findFailingInputs(gates: Vector[Operation]): LazyList[(Long, Long, Long)] = {
     val inputs = generateNewInputs(10)
 
     LazyList.from(inputs).map { case (xs, ys) =>
@@ -205,7 +205,15 @@ object Day24 {
       val endState = evaluate(program)
       val zs = convertZsToDecimal(endState)
       (xs, ys, zs)
-    }.find { case (xs, ys, actualZs) => actualZs != xs + ys }
+    }.filter { case (xs, ys, actualZs) => actualZs != xs + ys }
+  }
+
+  def findMismatchingBits(actual: Long, expected: Long): Vector[Int] = {
+    actual.toBinaryString.reverse
+      .zip(expected.toBinaryString.reverse)
+      .zipWithIndex
+      .collect { case ((actualBit, expectedBit), ix) if actualBit != expectedBit => ix }
+      .toVector
   }
 
   def task2(): Int = {
@@ -216,11 +224,20 @@ object Day24 {
 //    println(convertZsToDecimal(endState))
 //    println(12420713017224L + 18578244294226L)
 
-    findFailingInput(ogProgram.gates).foreach { case (xs, ys, actualZs) =>
+    findFailingInputs(ogProgram.gates).foreach { case (xs, ys, actualZs) =>
+      val expectedZs = xs + ys
+
       println(s"xs: ${xs}")
       println(s"ys: ${ys}")
+
       println(s"actual zs: ${actualZs}")
-      println(s"expected zs: ${xs + ys}")
+      println(s"expected zs: ${expectedZs}")
+
+      println(s"${actualZs.toBinaryString}")
+      println(s"${expectedZs.toBinaryString}")
+      println(findMismatchingBits(actualZs, expectedZs))
+
+      println()
     }
 
 
