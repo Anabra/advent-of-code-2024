@@ -200,7 +200,7 @@ object Day24 {
   def findFailingInput(gates: Vector[Operation]): Option[(Long, Long, Long)] = {
     val inputs = generateNewInputs(10)
 
-    inputs.map { case (xs, ys) =>
+    LazyList.from(inputs).map { case (xs, ys) =>
       val program = Program(inputs = calcInputs(xs, ys), gates = gates)
       val endState = evaluate(program)
       val zs = convertZsToDecimal(endState)
