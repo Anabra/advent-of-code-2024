@@ -5,6 +5,8 @@ import adventofcode2024.common.graphs.*
 import guru.nidi.graphviz.attribute.Attributes.attr
 import guru.nidi.graphviz.attribute.{Color, Font, Rank, Style}
 import guru.nidi.graphviz.engine.{Format, Graphviz}
+import guru.nidi.graphviz.model.Factory.*
+import guru.nidi.graphviz.attribute.Rank.RankDir.*
 
 import java.io.File
 import scala.annotation.{nowarn, tailrec}
@@ -221,20 +223,19 @@ object Day24 {
   }
 
   def depsToGraphviz(program: Program): Unit = {
-    import guru.nidi.graphviz.model.Factory.*
-    import guru.nidi.graphviz.attribute.Rank.RankDir.*
-
+    val depGraph = calcDependencyGraph(program.gates)
+    val links = depGraph.toVector.flatMap { case (inVarName, outVarNames) =>
+      outVarNames.map(dep => node(inVarName).link(node(dep)))
+    }
+    
     val exampleGraph = graph("example1")
       .directed
       .graphAttr.`with`(Rank.dir(LEFT_TO_RIGHT))
       .nodeAttr.`with`(Font.name("arial"))
       .linkAttr.`with`("class", "link-class")
-      .`with`(
-        node("a").`with`(Color.RED).link(node("b")),
-        node("b").link(to(node("c")).`with`(attr("weight", 5), Style.DASHED)),
-      )
+      .`with`(links*)
 
-    Graphviz.fromGraph(exampleGraph).height(100).render(Format.PNG).toFile(new File("example/ex1.png"))
+    Graphviz.fromGraph(exampleGraph).height(100).render(Format.SVG).toFile(new File("example/ex1.svg"))
   }
 
   def task2(): Int = {
