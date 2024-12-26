@@ -57,6 +57,13 @@ package object common {
 
     loop(init, Vector(init))
   }
+  
+  def fix[T](init: T)(f: T => T): T = {
+    iterateWhile(init) { x => 
+      val y = f(x)
+      if (y == x) None else Some(y)
+    }.last
+  }
 
   extension [T](vv: Vector[Vector[T]]) {
     def updated(coords: Coords, value: T): Vector[Vector[T]] = {

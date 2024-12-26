@@ -326,10 +326,36 @@ object Day24 {
     evaluateGateConfig(newGateConfig, newComputeOrder, inputs)
   }
 
-
   // map of outvar -> invars that depend on invar
   def calcInverseDependencyGraph(gates: Vector[Gate]): Map[VarName, Set[VarName]] =
     calcGateConfig(gates).mapVals { case GateWithoutOutVar(_, lhs, rhs) => Set(lhs, rhs) }
+
+  def calcInverseTransitiveDependencyGraph(gates: Vector[Gate]): Map[VarName, Set[VarName]] =
+    fix(calcInverseDependencyGraph(gates)) { depGraph =>
+      depGraph.map { case (outVar, inVars) =>
+        val inVarsOfInVars = inVars.flatMap(depGraph.getOrElse(_, Set()))
+        outVar -> (inVars ++ inVarsOfInVars)
+      }
+    }
+
+  def calcTransitiveDependencyGraph(gates: Vector[Gate]): Map[VarName, Set[VarName]] =
+    fix(calcDependencyGraph(gates)) { depGraph =>
+      depGraph.map { case (inVar, outVars) =>
+        val outVarsOfOutVars = outVars.flatMap(depGraph.getOrElse(_, Set()))
+        inVar -> (outVars ++ outVarsOfOutVars)
+      }
+    }
+
+  def calcSwappabilityGraph(gates: Vector[Gate]): Map[VarName, Set[VarName]] = {
+    val allOutVars = gates.map(_.out).toSet
+    val inverseTransitiveDeps = calcInverseTransitiveDependencyGraph(gates)
+    val transitiveDeps = calcTransitiveDependencyGraph(gates)
+    allOutVars.map { outVar =>
+      val transitiveInputs = inverseTransitiveDeps.getOrElse(outVar, Set())
+      val transitiveOutputs = transitiveDeps.getOrElse(outVar, Set())
+      outVar -> (allOutVars -- transitiveInputs -- transitiveOutputs)
+    }.toMap
+  }
 
   def task2(): Int = {
     val ogProgram = readInput("day24.txt")
@@ -362,6 +388,7 @@ object Day24 {
 
     val ogGateConfig = calcGateConfig(ogProgram.gates)
     val ogComputeOrder = calcComputeOrder(ogProgram.gates)
+    val swappability = calcSwappabilityGraph(ogProgram.gates)
     val xs = 1024L
     val ys = 2L
     val newProgram = overrideInputs(ogProgram, xs = xs, ys = ys)
