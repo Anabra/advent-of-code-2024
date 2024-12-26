@@ -6,6 +6,7 @@ lazy val uereliusMinusculus = (project in file("."))
     name := "advent-of-code-2024",
     run / fork := true,
     libraryDependencies ++= Seq(
-      "org.scala-lang.modules" %% "scala-parallel-collections" % "1.1.0"
+      "org.scala-lang.modules" %% "scala-parallel-collections" % "1.1.0",
+      "guru.nidi" % "graphviz-java" % "0.18.1",
     ),
   )
