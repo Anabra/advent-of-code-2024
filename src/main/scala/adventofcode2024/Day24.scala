@@ -5,7 +5,7 @@ import adventofcode2024.common.graphs.*
 import guru.nidi.graphviz.attribute.Attributes.attr
 import guru.nidi.graphviz.attribute.{Color, Font, Rank, Style}
 import guru.nidi.graphviz.engine.{Format, Graphviz}
-import guru.nidi.graphviz.model.Factory.*
+import guru.nidi.graphviz.model.{Node, Factory as gviz}
 import guru.nidi.graphviz.attribute.Rank.RankDir.*
 
 import java.io.File
@@ -76,6 +76,10 @@ object Day24 {
           case Some(outs) => Some(outs + curOp.out)
         }
     }
+
+  // map of outvar -> invars that depend on invar
+  def calcInverseDependencyGraph(operations: Vector[Operation]): Map[VarName, Set[VarName]] =
+    reverseGraph(calcDependencyGraph(operations))
 
   def reorderOperations(operations: Vector[Operation]): Vector[Operation] = {
     val deps = calcDependencyGraph(operations)
@@ -222,25 +226,36 @@ object Day24 {
       .toVector
   }
 
-  def depsToGraphviz(program: Program): Unit = {
-    val depGraph = calcDependencyGraph(program.gates)
-    val links = depGraph.toVector.flatMap { case (inVarName, outVarNames) =>
-      outVarNames.map(dep => node(inVarName).link(node(dep)))
+  def genGraphivLinks(dependencyGraph: Map[VarName, Set[VarName]]): Vector[Node] =
+    dependencyGraph.toVector.flatMap { case (curNode, deps) =>
+      deps.map(dep => gviz.node(curNode).link(gviz.node(dep)))
     }
-    
-    val exampleGraph = graph("example1")
+
+  def visualizeWithGraphviz(program: Program): Unit = {
+    val invarToOutvarsLinks = genGraphivLinks(calcDependencyGraph(program.gates))
+    val outvarToInvarsLinks = genGraphivLinks(calcInverseDependencyGraph(program.gates))
+
+    val invarToOutvars = gviz.graph("invar-to-outvars")
       .directed
       .graphAttr.`with`(Rank.dir(LEFT_TO_RIGHT))
       .nodeAttr.`with`(Font.name("arial"))
       .linkAttr.`with`("class", "link-class")
-      .`with`(links*)
+      .`with`(invarToOutvarsLinks*)
 
-    Graphviz.fromGraph(exampleGraph).height(100).render(Format.SVG).toFile(new File("example/ex1.svg"))
+    val outvarToInvars = gviz.graph("outvar-to-invars")
+      .directed
+      .graphAttr.`with`(Rank.dir(RIGHT_TO_LEFT))
+      .nodeAttr.`with`(Font.name("arial"))
+      .linkAttr.`with`("class", "link-class")
+      .`with`(outvarToInvarsLinks*)
+
+    Graphviz.fromGraph(invarToOutvars).height(100).render(Format.SVG).toFile(new File("example/invar-to-outvars.svg"))
+    Graphviz.fromGraph(outvarToInvars).height(100).render(Format.SVG).toFile(new File("example/outvar-to-invars.svg"))
   }
 
   def task2(): Int = {
     val ogProgram = readInput("day24.txt")
-    depsToGraphviz(ogProgram)
+    visualizeWithGraphviz(ogProgram)
 
 //    val newProgram = overrideInputs(ogProgram, xs = 12420713017224L, ys = 18578244294226L)
 //    val endState = evaluate(newProgram)
