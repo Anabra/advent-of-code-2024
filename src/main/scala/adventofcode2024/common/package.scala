@@ -84,4 +84,8 @@ package object common {
       x.find(pos => vv.at(pos).exists(pred))
     }
   }
+  
+  extension [K,V1, V2](m: Map[K,V1]) {
+    def mapVals(f: V1 => V2): Map[K, V2] = m.view.mapValues(f).toMap
+  }
 }

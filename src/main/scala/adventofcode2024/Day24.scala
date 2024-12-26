@@ -9,14 +9,15 @@ import guru.nidi.graphviz.model.{Node, Factory as gviz}
 import guru.nidi.graphviz.attribute.Rank.RankDir.*
 
 import java.io.File
+import java.nio.channels.GatheringByteChannel
 import scala.annotation.{nowarn, tailrec}
 import scala.collection.mutable
 import scala.util.Random
 
 object Day24 {
   def main(args: Array[String]): Unit = {
-    println(task1())
-//    println(task2())
+//    println(task1())
+    println(task2())
   }
 
   type VarName = String
@@ -79,10 +80,6 @@ object Day24 {
           case Some(outs) => Some(outs + curOp.out)
         }
     }
-
-  // map of outvar -> invars that depend on invar
-  def calcInverseDependencyGraph(operations: Vector[Gate]): Map[VarName, Set[VarName]] =
-    reverseGraph(calcDependencyGraph(operations))
 
   def reorderOperations(operations: Vector[Gate]): Vector[Gate] = {
     val deps = calcDependencyGraph(operations)
@@ -258,7 +255,27 @@ object Day24 {
     Graphviz.fromGraph(outvarToInvars).height(100).render(Format.SVG).toFile(new File("example/outvar-to-invars.svg"))
   }
 
-//  type GeteConfiguration = Map[(VarName, Gate), Set[VarName]]
+  case class GateWithoutOutVar(
+    op: Operation,
+    lhs: VarName,
+    rhs: VarName,
+  )
+
+  // outvar -> op + invars
+  type GateConfiguration = Map[VarName, GateWithoutOutVar]
+
+  def calcGateConfig(gates: Vector[Gate]): GateConfiguration =
+    gates.foldLeft(Map.empty) { case (gateConfig, curGate) =>
+      gateConfig
+        .updatedWith(curGate.out) {
+          case None => Some(GateWithoutOutVar(curGate.op, curGate.lhs, curGate.rhs))
+          case _ => throw new Exception("shouldnt happen")
+        }
+    }
+
+  // map of outvar -> invars that depend on invar
+  def calcInverseDependencyGraph(gates: Vector[Gate]): Map[VarName, Set[VarName]] =
+    calcGateConfig(gates).mapVals { case GateWithoutOutVar(_, lhs, rhs) => Set(lhs, rhs) }
 
   def task2(): Int = {
     val ogProgram = readInput("day24.txt")
