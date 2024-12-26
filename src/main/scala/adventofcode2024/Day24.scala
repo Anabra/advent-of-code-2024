@@ -15,25 +15,28 @@ import scala.util.Random
 
 object Day24 {
   def main(args: Array[String]): Unit = {
-//    println(task1())
-    println(task2())
+    println(task1())
+//    println(task2())
   }
 
   type VarName = String
   type Bit = Int
 
-  sealed trait Operation {
-    val lhs: VarName
-    val rhs: VarName
-    val out: VarName
+  enum Operation {
+    case And, Xor, Or
   }
-  case class And(lhs: VarName, rhs: VarName, out: VarName) extends Operation
-  case class Or(lhs: VarName, rhs: VarName, out: VarName) extends Operation
-  case class Xor(lhs: VarName, rhs: VarName, out: VarName) extends Operation
+  import Operation.*
+
+  case class Gate(
+    op: Operation,
+    lhs: VarName,
+    rhs: VarName,
+    out: VarName,
+  )
 
   case class Program(
     inputs: Map[VarName, Bit],
-    gates: Vector[Operation],
+    gates: Vector[Gate],
   )
 
   def readInput(path: String): Program = {
@@ -54,9 +57,9 @@ object Day24 {
     val gates = rawGates.map {
       case gatePat(lhsName, rawGate, rhsName, outputName) =>
         rawGate match {
-          case "AND" => And(lhsName, rhsName, outputName)
-          case "XOR" => Xor(lhsName, rhsName, outputName)
-          case "OR" => Or(lhsName, rhsName, outputName)
+          case "AND" => Gate(And, lhsName, rhsName, outputName)
+          case "XOR" => Gate(Xor, lhsName, rhsName, outputName)
+          case "OR" => Gate(Or, lhsName, rhsName, outputName)
         }
     }
 
@@ -64,7 +67,7 @@ object Day24 {
   }
 
   // map of invar -> outvars that depend on invar
-  def calcDependencyGraph(operations: Vector[Operation]): Map[VarName, Set[VarName]] =
+  def calcDependencyGraph(operations: Vector[Gate]): Map[VarName, Set[VarName]] =
     operations.foldLeft(Map.empty[VarName, Set[VarName]]) { case (deps, curOp) =>
       deps
         .updatedWith(curOp.lhs) {
@@ -78,10 +81,10 @@ object Day24 {
     }
 
   // map of outvar -> invars that depend on invar
-  def calcInverseDependencyGraph(operations: Vector[Operation]): Map[VarName, Set[VarName]] =
+  def calcInverseDependencyGraph(operations: Vector[Gate]): Map[VarName, Set[VarName]] =
     reverseGraph(calcDependencyGraph(operations))
 
-  def reorderOperations(operations: Vector[Operation]): Vector[Operation] = {
+  def reorderOperations(operations: Vector[Gate]): Vector[Gate] = {
     val deps = calcDependencyGraph(operations)
     val varsInComputeOrder = toposort(deps)
     operations.sortBy(op => varsInComputeOrder.indexOf(op.out))
@@ -91,9 +94,9 @@ object Day24 {
     val reorderedOps = reorderOperations(program.gates)
     reorderedOps.foldLeft(program.inputs) { case (vars, op) =>
       val res = op match {
-        case And(lhs, rhs, _) => vars(lhs) & vars(rhs)
-        case Xor(lhs, rhs, _) => vars(lhs) ^ vars(rhs)
-        case Or(lhs, rhs, _)  => vars(lhs) | vars(rhs)
+        case Gate(And, lhs, rhs, _) => vars(lhs) & vars(rhs)
+        case Gate(Xor, lhs, rhs, _) => vars(lhs) ^ vars(rhs)
+        case Gate(Or, lhs, rhs, _)  => vars(lhs) | vars(rhs)
       }
       vars.updated(op.out, res)
     }
@@ -108,7 +111,7 @@ object Day24 {
   }
 
   def task1(): Long = {
-    val program = readInput("day24_small.txt")
+    val program = readInput("day24.txt")
 
     program.inputs.toVector.sorted.foreach { case (varName, value) =>
       println(s"${varName}: ${value}")
@@ -120,7 +123,9 @@ object Day24 {
 
     val endState = evaluate(program)
 
-    calcFinalAnswer(endState)
+    val res = calcFinalAnswer(endState)
+    assert(res == 51745744348272L)
+    res
   }
 
   def convertVarsToDecimal(vars: Map[VarName, Bit], pred: VarName => Boolean): Long = {
@@ -207,7 +212,7 @@ object Day24 {
     zs == xs + ys
   }
 
-  def findFailingInputs(gates: Vector[Operation]): LazyList[(Long, Long, Long)] = {
+  def findFailingInputs(gates: Vector[Gate]): LazyList[(Long, Long, Long)] = {
     val inputs = generateNewInputs(10)
 
     LazyList.from(inputs).map { case (xs, ys) =>
@@ -252,6 +257,8 @@ object Day24 {
     Graphviz.fromGraph(invarToOutvars).height(100).render(Format.SVG).toFile(new File("example/invar-to-outvars.svg"))
     Graphviz.fromGraph(outvarToInvars).height(100).render(Format.SVG).toFile(new File("example/outvar-to-invars.svg"))
   }
+
+//  type GeteConfiguration = Map[(VarName, Gate), Set[VarName]]
 
   def task2(): Int = {
     val ogProgram = readInput("day24.txt")
