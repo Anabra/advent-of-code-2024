@@ -58,7 +58,7 @@ object Day24 {
   }
 
   // map of invar -> outvars that depend on invar
-  def calcDependencies(operations: Vector[Operation]): Map[VarName, Set[VarName]] =
+  def calcDependencyGraph(operations: Vector[Operation]): Map[VarName, Set[VarName]] =
     operations.foldLeft(Map.empty[VarName, Set[VarName]]) { case (deps, curOp) =>
       deps
         .updatedWith(curOp.lhs) {
@@ -72,7 +72,7 @@ object Day24 {
     }
 
   def reorderOperations(operations: Vector[Operation]): Vector[Operation] = {
-    val deps = calcDependencies(operations)
+    val deps = calcDependencyGraph(operations)
     val varsInComputeOrder = toposort(deps)
     operations.sortBy(op => varsInComputeOrder.indexOf(op.out))
   }
