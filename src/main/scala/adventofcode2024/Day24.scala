@@ -2,7 +2,11 @@ package adventofcode2024
 
 import adventofcode2024.common.*
 import adventofcode2024.common.graphs.*
+import guru.nidi.graphviz.attribute.Attributes.attr
+import guru.nidi.graphviz.attribute.{Color, Font, Rank, Style}
+import guru.nidi.graphviz.engine.{Format, Graphviz}
 
+import java.io.File
 import scala.annotation.{nowarn, tailrec}
 import scala.collection.mutable
 import scala.util.Random
@@ -216,8 +220,26 @@ object Day24 {
       .toVector
   }
 
+  def depsToGraphviz(program: Program): Unit = {
+    import guru.nidi.graphviz.model.Factory.*
+    import guru.nidi.graphviz.attribute.Rank.RankDir.*
+
+    val exampleGraph = graph("example1")
+      .directed
+      .graphAttr.`with`(Rank.dir(LEFT_TO_RIGHT))
+      .nodeAttr.`with`(Font.name("arial"))
+      .linkAttr.`with`("class", "link-class")
+      .`with`(
+        node("a").`with`(Color.RED).link(node("b")),
+        node("b").link(to(node("c")).`with`(attr("weight", 5), Style.DASHED)),
+      )
+
+    Graphviz.fromGraph(exampleGraph).height(100).render(Format.PNG).toFile(new File("example/ex1.png"))
+  }
+
   def task2(): Int = {
     val ogProgram = readInput("day24.txt")
+    depsToGraphviz(ogProgram)
 
 //    val newProgram = overrideInputs(ogProgram, xs = 12420713017224L, ys = 18578244294226L)
 //    val endState = evaluate(newProgram)
