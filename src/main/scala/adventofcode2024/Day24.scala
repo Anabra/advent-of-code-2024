@@ -81,21 +81,33 @@ object Day24 {
         }
     }
 
-  def reorderOperations(operations: Vector[Gate]): Vector[Gate] = {
-    val deps = calcDependencyGraph(operations)
-    val varsInComputeOrder = toposort(deps)
-    operations.sortBy(op => varsInComputeOrder.indexOf(op.out))
+  def calcComputeOrder(gates: Vector[Gate]): Vector[VarName] = {
+    val deps = calcDependencyGraph(gates)
+    toposort(deps)
   }
 
-  def evaluate(program: Program): Map[VarName, Bit] = {
+  def reorderOperations(gates: Vector[Gate]): Vector[Gate] = {
+    val varsInComputeOrder = calcComputeOrder(gates)
+    gates.sortBy(op => varsInComputeOrder.indexOf(op.out))
+  }
+
+  def evaluateOp(vars: Map[VarName, Bit], op: Operation, lhs: VarName, rhs: VarName, out: VarName): Map[VarName, Bit] = {
+    val lhsVal = vars(lhs)
+    val rhsVal = vars(rhs)
+
+    val res = op match {
+      case And => lhsVal & rhsVal
+      case Xor => lhsVal ^ rhsVal
+      case Or  => lhsVal | rhsVal
+    }
+
+    vars.updated(out, res)
+  }
+
+  def evaluateProgram(program: Program): Map[VarName, Bit] = {
     val reorderedOps = reorderOperations(program.gates)
-    reorderedOps.foldLeft(program.inputs) { case (vars, op) =>
-      val res = op match {
-        case Gate(And, lhs, rhs, _) => vars(lhs) & vars(rhs)
-        case Gate(Xor, lhs, rhs, _) => vars(lhs) ^ vars(rhs)
-        case Gate(Or, lhs, rhs, _)  => vars(lhs) | vars(rhs)
-      }
-      vars.updated(op.out, res)
+    reorderedOps.foldLeft(program.inputs) { case (vars, gate) =>
+      evaluateOp(vars, gate.op, gate.lhs, gate.rhs, gate.out)
     }
   }
 
@@ -110,15 +122,7 @@ object Day24 {
   def task1(): Long = {
     val program = readInput("day24.txt")
 
-    program.inputs.toVector.sorted.foreach { case (varName, value) =>
-      println(s"${varName}: ${value}")
-    }
-    println()
-
-    val reorderedGates = reorderOperations(program.gates)
-    reorderedGates.foreach(println)
-
-    val endState = evaluate(program)
+    val endState = evaluateProgram(program)
 
     val res = calcFinalAnswer(endState)
     assert(res == 51745744348272L)
@@ -204,7 +208,7 @@ object Day24 {
   }
 
   def isValidProgram(program: Program, xs: Long, ys: Long): Boolean = {
-    val endState = evaluate(program)
+    val endState = evaluateProgram(program)
     val zs = convertZsToDecimal(endState)
     zs == xs + ys
   }
@@ -214,7 +218,7 @@ object Day24 {
 
     LazyList.from(inputs).map { case (xs, ys) =>
       val program = Program(inputs = calcInputs(xs, ys), gates = gates)
-      val endState = evaluate(program)
+      val endState = evaluateProgram(program)
       val zs = convertZsToDecimal(endState)
       (xs, ys, zs)
     }.filter { case (xs, ys, actualZs) => actualZs != xs + ys }
@@ -273,6 +277,56 @@ object Day24 {
         }
     }
 
+  def swapGatesInConfig(gateConfig: GateConfiguration, outVar1: VarName, outVar2: VarName): GateConfiguration = {
+    val ogGateOutVar1 = gateConfig(outVar1)
+    val ogGateOutVar2 = gateConfig(outVar2)
+
+    gateConfig.updated(outVar1, ogGateOutVar2).updated(outVar2, ogGateOutVar1)
+  }
+
+  def swapGatesInComputeOrder(order: Vector[VarName], outVar1: VarName, outVar2: VarName): Vector[VarName] = {
+    val outVar1Ix = order.indexOf(outVar1)
+    val outVar2Ix = order.indexOf(outVar2)
+
+    order
+      .updated(outVar1Ix, outVar2)
+      .updated(outVar2Ix, outVar1)
+  }
+
+  def evaluateGateConfig(
+    config: GateConfiguration,
+    computeOrder: Vector[VarName],
+    inputs: Map[VarName, Bit]
+  ): Map[VarName, Bit] = {
+    computeOrder.foldLeft(inputs) { case (curState, curVarToCompute) =>
+      inputs.get(curVarToCompute) match {
+        case None =>
+          val gate = config(curVarToCompute)
+          evaluateOp(curState, gate.op, gate.lhs, gate.rhs, curVarToCompute)
+        // it was an input variable
+        case Some(inputValue) =>
+          curState.updated(curVarToCompute, inputValue)
+      }
+    }
+  }
+
+  def evaluateGateConfigWithSwaps(
+    gateConfig: GateConfiguration,
+    ogComputeOrder: Vector[VarName],
+    inputs: Map[VarName, Bit],
+    swaps: Vector[(VarName, VarName)],
+  ): Map[VarName, Bit] = {
+    val newGateConfig = swaps.foldLeft(gateConfig) { case (gCfg, (outVar1, outVar2)) =>
+      swapGatesInConfig(gCfg, outVar1, outVar2)
+    }
+    val newComputeOrder = swaps.foldLeft(ogComputeOrder) { case (curOrder, (outVar1, outVar2)) =>
+      swapGatesInComputeOrder(curOrder, outVar1, outVar2)
+    }
+
+    evaluateGateConfig(newGateConfig, newComputeOrder, inputs)
+  }
+
+
   // map of outvar -> invars that depend on invar
   def calcInverseDependencyGraph(gates: Vector[Gate]): Map[VarName, Set[VarName]] =
     calcGateConfig(gates).mapVals { case GateWithoutOutVar(_, lhs, rhs) => Set(lhs, rhs) }
@@ -298,6 +352,34 @@ object Day24 {
       println(s"${actualZs.toBinaryString}")
       println(s"${expectedZs.toBinaryString}")
       println(findMismatchingBits(actualZs, expectedZs))
+
+      println()
+    }
+
+    val allSwaps = Vector(
+      Vector("z00" -> "z01"),
+    )
+
+    val ogGateConfig = calcGateConfig(ogProgram.gates)
+    val ogComputeOrder = calcComputeOrder(ogProgram.gates)
+    val xs = 1024L
+    val ys = 2L
+    val newProgram = overrideInputs(ogProgram, xs = xs, ys = ys)
+    allSwaps.foreach { swaps =>
+      val endState = evaluateGateConfigWithSwaps(ogGateConfig, ogComputeOrder, newProgram.inputs, swaps)
+      val actualZs = convertZsToDecimal(endState)
+
+      val expectedZs = xs + ys
+
+      println(s"xs: ${xs}")
+      println(s"ys: ${ys}")
+
+      println(s"actual zs: ${actualZs}")
+      println(s"expected zs: ${expectedZs}")
+
+      println(s"${actualZs.toBinaryString}")
+      println(s"${expectedZs.toBinaryString}")
+//      println(findMismatchingBits(actualZs, expectedZs))
 
       println()
     }
