@@ -3,7 +3,7 @@ package adventofcode2024
 import adventofcode2024.common.*
 import adventofcode2024.common.graphs.*
 import guru.nidi.graphviz.attribute.Attributes.attr
-import guru.nidi.graphviz.attribute.{Color, Font, Rank, Style}
+import guru.nidi.graphviz.attribute.{Color, Font, Rank, SimpleLabel, Style}
 import guru.nidi.graphviz.engine.{Format, Graphviz}
 import guru.nidi.graphviz.model.{Node, Factory as gviz}
 import guru.nidi.graphviz.attribute.Rank.RankDir.*
@@ -237,9 +237,19 @@ object Day24 {
       deps.map(dep => gviz.node(curNode).link(gviz.node(dep)))
     }
 
+  def genGraphivLinksFromGateConfig(gateConfig: GateConfiguration): Vector[Node] =
+    gateConfig.toVector.flatMap { case (outVar, gate) =>
+      val nodeLabel = s"${gate.op.toString.toUpperCase} -> ${outVar}"
+
+      Vector(
+        gviz.node(outVar).`with`("label", nodeLabel).link(gviz.node(gate.lhs)),
+        gviz.node(outVar).`with`("label", nodeLabel).link(gviz.node(gate.rhs)),
+      )
+    }
+
   def visualizeWithGraphviz(program: Program): Unit = {
     val invarToOutvarsLinks = genGraphivLinks(calcDependencyGraph(program.gates))
-    val outvarToInvarsLinks = genGraphivLinks(calcInverseDependencyGraph(program.gates))
+    val outvarToInvarsLinks = genGraphivLinksFromGateConfig(calcGateConfig(program.gates))
 
     val invarToOutvars = gviz.graph("invar-to-outvars")
       .directed
@@ -389,6 +399,9 @@ object Day24 {
     val ogGateConfig = calcGateConfig(ogProgram.gates)
     val ogComputeOrder = calcComputeOrder(ogProgram.gates)
     val swappability = calcSwappabilityGraph(ogProgram.gates)
+    println(swappability.values.map(_.size).sum)
+    val upperBoundForPossibleSwaps = math.pow(swappability.values.map(_.size).sum, 4) / 8 / 24
+    println(s"upper bound for num swaps: ${upperBoundForPossibleSwaps}")
     val xs = 1024L
     val ys = 2L
     val newProgram = overrideInputs(ogProgram, xs = xs, ys = ys)
