@@ -86,6 +86,11 @@ object Day24 {
     toposort(deps)
   }
 
+  def calcComputeOrderFromGateConfig(gateConfig: GateConfiguration): Vector[VarName] = {
+    val gates = gateConfig.toVector.map { case (outVar, gate) => Gate(gate.op, gate.lhs, gate.rhs, outVar) }
+    calcComputeOrder(gates)
+  }
+
   def reorderOperations(gates: Vector[Gate]): Vector[Gate] = {
     val varsInComputeOrder = calcComputeOrder(gates)
     gates.sortBy(op => varsInComputeOrder.indexOf(op.out))
@@ -213,12 +218,11 @@ object Day24 {
     zs == xs + ys
   }
 
-  def findFailingInputs(gates: Vector[Gate]): LazyList[(Long, Long, Long)] = {
+  def findFailingInputs(gateConfig: GateConfiguration, computeOrder: Vector[VarName]): LazyList[(Long, Long, Long)] = {
     val inputs = generateNewInputs(10)
 
     LazyList.from(inputs).map { case (xs, ys) =>
-      val program = Program(inputs = calcInputs(xs, ys), gates = gates)
-      val endState = evaluateProgram(program)
+      val endState = evaluateGateConfig(gateConfig, computeOrder, calcInputs(xs, ys))
       val zs = convertZsToDecimal(endState)
       (xs, ys, zs)
     }.filter { case (xs, ys, actualZs) => actualZs != xs + ys }
@@ -247,16 +251,8 @@ object Day24 {
       )
     }
 
-  def visualizeWithGraphviz(program: Program): Unit = {
-    val invarToOutvarsLinks = genGraphivLinks(calcDependencyGraph(program.gates))
-    val outvarToInvarsLinks = genGraphivLinksFromGateConfig(calcGateConfig(program.gates))
-
-    val invarToOutvars = gviz.graph("invar-to-outvars")
-      .directed
-      .graphAttr.`with`(Rank.dir(LEFT_TO_RIGHT))
-      .nodeAttr.`with`(Font.name("arial"))
-      .linkAttr.`with`("class", "link-class")
-      .`with`(invarToOutvarsLinks*)
+  def visualizeWithGraphviz(gateConfiguration: GateConfiguration, suffix: String = ""): Unit = {
+    val outvarToInvarsLinks = genGraphivLinksFromGateConfig(gateConfiguration)
 
     val outvarToInvars = gviz.graph("outvar-to-invars")
       .directed
@@ -265,8 +261,8 @@ object Day24 {
       .linkAttr.`with`("class", "link-class")
       .`with`(outvarToInvarsLinks*)
 
-    Graphviz.fromGraph(invarToOutvars).height(100).render(Format.SVG).toFile(new File("example/invar-to-outvars.svg"))
-    Graphviz.fromGraph(outvarToInvars).height(100).render(Format.SVG).toFile(new File("example/outvar-to-invars.svg"))
+    val fileName = s"example/outvar-to-invars${suffix}.svg"
+    Graphviz.fromGraph(outvarToInvars).height(100).render(Format.SVG).toFile(new File(fileName))
   }
 
   case class GateWithoutOutVar(
@@ -320,18 +316,24 @@ object Day24 {
     }
   }
 
+  def swapManyGatesInConfig(gateConfig: GateConfiguration, swaps: Vector[(VarName, VarName)]): GateConfiguration =
+    swaps.foldLeft(gateConfig) { case (gCfg, (outVar1, outVar2)) =>
+      swapGatesInConfig(gCfg, outVar1, outVar2)
+    }
+
+  def swapManyGatesInComputeOrder(computeOrder: Vector[VarName], swaps: Vector[(VarName, VarName)]): Vector[VarName] =
+    swaps.foldLeft(computeOrder) { case (curOrder, (outVar1, outVar2)) =>
+      swapGatesInComputeOrder(curOrder, outVar1, outVar2)
+    }
+
   def evaluateGateConfigWithSwaps(
     gateConfig: GateConfiguration,
     ogComputeOrder: Vector[VarName],
     inputs: Map[VarName, Bit],
     swaps: Vector[(VarName, VarName)],
   ): Map[VarName, Bit] = {
-    val newGateConfig = swaps.foldLeft(gateConfig) { case (gCfg, (outVar1, outVar2)) =>
-      swapGatesInConfig(gCfg, outVar1, outVar2)
-    }
-    val newComputeOrder = swaps.foldLeft(ogComputeOrder) { case (curOrder, (outVar1, outVar2)) =>
-      swapGatesInComputeOrder(curOrder, outVar1, outVar2)
-    }
+    val newGateConfig = swapManyGatesInConfig(gateConfig, swaps)
+    val newComputeOrder = swapManyGatesInComputeOrder(ogComputeOrder, swaps)
 
     evaluateGateConfig(newGateConfig, newComputeOrder, inputs)
   }
@@ -369,14 +371,23 @@ object Day24 {
 
   def task2(): Int = {
     val ogProgram = readInput("day24.txt")
-    visualizeWithGraphviz(ogProgram)
+    val ogGateConfig = calcGateConfig(ogProgram.gates)
+    val ogComputeOrder = calcComputeOrder(ogProgram.gates)
 
-//    val newProgram = overrideInputs(ogProgram, xs = 12420713017224L, ys = 18578244294226L)
-//    val endState = evaluate(newProgram)
-//    println(convertZsToDecimal(endState))
-//    println(12420713017224L + 18578244294226L)
+    visualizeWithGraphviz(ogGateConfig)
 
-    findFailingInputs(ogProgram.gates).foreach { case (xs, ys, actualZs) =>
+    val swaps = Vector(
+      "z18" -> "hmt",
+      "z27" -> "bfq",
+      "z31" -> "hkh",
+      "fjp" -> "bng",
+    )
+    println(swaps.flatMap { case (lhs, rhs) => Vector(lhs, rhs) }.sorted.mkString(","))
+    val swappedGateConfig = swapManyGatesInConfig(ogGateConfig, swaps)
+    val swappedComputeOrder = calcComputeOrderFromGateConfig(swappedGateConfig)
+    visualizeWithGraphviz(swappedGateConfig, "-swapped")
+
+    findFailingInputs(swappedGateConfig, swappedComputeOrder).foreach { case (xs, ys, actualZs) =>
       val expectedZs = xs + ys
 
       println(s"xs: ${xs}")
@@ -388,38 +399,6 @@ object Day24 {
       println(s"${actualZs.toBinaryString}")
       println(s"${expectedZs.toBinaryString}")
       println(findMismatchingBits(actualZs, expectedZs))
-
-      println()
-    }
-
-    val allSwaps = Vector(
-      Vector("z00" -> "z01"),
-    )
-
-    val ogGateConfig = calcGateConfig(ogProgram.gates)
-    val ogComputeOrder = calcComputeOrder(ogProgram.gates)
-    val swappability = calcSwappabilityGraph(ogProgram.gates)
-    println(swappability.values.map(_.size).sum)
-    val upperBoundForPossibleSwaps = math.pow(swappability.values.map(_.size).sum, 4) / 8 / 24
-    println(s"upper bound for num swaps: ${upperBoundForPossibleSwaps}")
-    val xs = 1024L
-    val ys = 2L
-    val newProgram = overrideInputs(ogProgram, xs = xs, ys = ys)
-    allSwaps.foreach { swaps =>
-      val endState = evaluateGateConfigWithSwaps(ogGateConfig, ogComputeOrder, newProgram.inputs, swaps)
-      val actualZs = convertZsToDecimal(endState)
-
-      val expectedZs = xs + ys
-
-      println(s"xs: ${xs}")
-      println(s"ys: ${ys}")
-
-      println(s"actual zs: ${actualZs}")
-      println(s"expected zs: ${expectedZs}")
-
-      println(s"${actualZs.toBinaryString}")
-      println(s"${expectedZs.toBinaryString}")
-//      println(findMismatchingBits(actualZs, expectedZs))
 
       println()
     }
